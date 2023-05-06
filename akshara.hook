@@ -9,6 +9,11 @@ run_latehook() {
         mv /new_root/usr /new_root/.old.usr
         mv /new_root/mnt/iso-update/squashfs-root/usr /new_root/usr
 
+        # Same for /var/lib.
+        mv /new_root/var/lib /new_root/.old.var.lib
+        mv /new_root/mnt/iso-update/squashfs-root/var/lib /new_root/var
+
+        # Move to /etc stage.
         rm -f /new_root/mnt/iso-update/.ready-for-update
         touch /new_root/mnt/iso-update/.etc-stage
     fi
@@ -23,5 +28,18 @@ run_latehook() {
 
         # Only copy non-existent files.
         cp -a -n /new_root/mnt/iso-update/squashfs-root/etc/* /new_root/etc
+
+        # Update pacman config.
+        cp /new_root/mnt/iso-update/squashfs-root/etc/pacman.conf /new_root/etc
+        rm -rf /new_root/etc/pacman.d
+        cp -r /new_root/mnt/iso-update/squashfs-root/etc/pacman.d /new_root/etc
+
+        # Successful update.
+        rm -f /new_root/mnt/iso-update/.etc-stage
+        touch /new_root/mnt/iso-update/.successful-update
     fi
+
+    # Create overlay directories
+    rm -rf /new_root/.blend-overlays /new_root/.blendrw
+    mkdir -p /new_root/.blend-overlays/{usr,varlib,etcpacman}
 }
