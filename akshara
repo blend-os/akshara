@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+# Copyright (C) 2023 Rudra Saraswat
+#
+# This file is part of blend.
+#
+# blend is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# blend is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with blend.  If not, see <http://www.gnu.org/licenses/>.
+
+
+import os
+import sys
+import time
+import yaml
+import argparse
+import platform
+import subprocess
+
+__version = '1.0.0'
+
+with open('/etc/blend_release') as blend_release_file:
+    blend_release = yaml.load(
+        blend_release_file, Loader=yaml.FullLoader)
+    server_url = blend_release['server']
+
+# Colors
+
+
+class colors:
+    reset = '\033[0m'
+    bold = '\033[01m'
+    disable = '\033[02m'
+    underline = '\033[04m'
+    reverse = '\033[07m'
+    strikethrough = '\033[09m'
+    invisible = '\033[08m'
+
+    class fg:
+        black = '\033[30m'
+        red = '\033[31m'
+        green = '\033[32m'
+        orange = '\033[33m'
+        blue = '\033[34m'
+        purple = '\033[35m'
+        cyan = '\033[36m'
+        lightgrey = '\033[37m'
+        darkgrey = '\033[90m'
+        lightred = '\033[91m'
+        lightgreen = '\033[92m'
+        yellow = '\033[93m'
+        lightblue = '\033[94m'
+        pink = '\033[95m'
+        lightcyan = '\033[96m'
+
+    class bg:
+        black = '\033[40m'
+        red = '\033[41m'
+        green = '\033[42m'
+        orange = '\033[43m'
+        blue = '\033[44m'
+        purple = '\033[45m'
+        cyan = '\033[46m'
+        lightgrey = '\033[47m'
+
+# END
+
+
+def exec(*cmd, **kwargs):
+    return subprocess.call(cmd, shell=False, stdout=sys.stdout,
+                           stderr=sys.stderr, **kwargs)
+
+
+def exec_chroot(*cmd, **kwargs):
+    return exec('systemd-nspawn', '-D', '/mnt/iso-update/squashfs-root', '--', *cmd, **kwargs)
+
+
+def info(msg):
+    print(colors.bold + colors.fg.cyan + '>> i: ' +
+          colors.reset + colors.bold + msg + colors.reset)
+
+
+def error(err):
+    print(colors.bold + colors.fg.red + '>> e: ' +
+          colors.reset + colors.bold + err + colors.reset)
+
+
+def get_server_timestamp():
+    with open('/etc/blend_release') as blend_release_file:
+        track = yaml.load(blend_release_file, Loader=yaml.FullLoader)['track']
+    server_version_output = subprocess.run(
+        ['curl', '--silent', '--show-error', f'{server_url}/track/{track}/current'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if server_version_output.stderr.decode().strip() != '':
+        return 0
+    elif server_version_output.stdout.decode().strip() != '' and server_version_output.stdout.decode().strip().isnumeric():
+        return int(server_version_output.stdout.decode().strip())
+    else:
+        return 0
+
+
+def update_system():
+    os.chdir('/mnt')
+    exec('rm', '-rf', '/mnt/iso-update/iso')
+    exec('rm', '-rf', '/mnt/iso-update/squashfs-root')
+    exec('mkdir', '-p', '/mnt/iso-update')
+
+    # Check if update is available
+    if os.path.isfile('/etc/blend_release'):
+        with open('/etc/blend_release') as blend_release_file:
+            blend_release = yaml.load(
+                blend_release_file, Loader=yaml.FullLoader)
+            current_timestamp = blend_release['current']
+            track = blend_release['track']
+            if get_server_timestamp() > current_timestamp:
+                # Update is available, let's download the latest ISO
+                exec('mkdir', '-p', '/mnt/iso-update')
+                if not os.path.isfile('/mnt/iso-update/update.iso'):
+                    exec('wget', '-O', '/mnt/iso-update/update.iso',
+                         f'{server_url}/track/{track}/download')
+                exec('rm', '-f', '/mnt/iso-update/update.iso.sha512sum')
+                exec('wget', '-O', '/mnt/iso-update/update.iso.sha512sum',
+                     f'{server_url}/track/{track}/update-sha512sum')
+                if exec('bash', '-c', 'cd /mnt/iso-update; sha512sum --check --status /mnt/iso-update/update.iso.sha512sum') != 0:
+                    exec('rm', '-f', '/mnt/iso-update/update.iso.sha512sum',
+                         '/mnt/iso-update/update.iso.sha512sum')
+                    exec('wget', '-O', '/mnt/iso-update/update.iso',
+                         f'{server_url}/track/{track}/download')
+                    exec('wget', '-O', '/mnt/iso-update/update.iso.sha512sum',
+                         f'{server_url}/track/{track}/update-sha512sum')
+                    if exec('sha512sum', '--check', '--status', 'update.iso.sha512sum', cwd='/mnt/iso-update') != 0:
+                        exec('rm', '-f', '/mnt/iso-update/.download_lock')
+                        return
+                exec('rm', '-f', '/mnt/iso-update/.download_lock')
+
+                # Since the ISO has been downloaded, proceed to extracing it
+                # as well the rootfs it contains (single-core unsquashfs)
+                exec('rm', '-rf', '/mnt/iso-update/iso',
+                     '/mnt/iso-update/squashfs-root')
+                exec('7z', '-oiso', 'x', 'update.iso', cwd='/mnt/iso-update')
+                if exec('unsquashfs', '-p', '1', f'iso/blend/{platform.machine()}/airootfs.sfs', cwd='/mnt/iso-update') != 0:
+                    return
+
+                ########################
+                # Configure new rootfs #
+                ########################
+
+                # Enable services
+                exec_chroot('systemctl', 'enable', 'bluetooth')
+                exec_chroot('systemctl', 'enable', 'cups')
+                exec_chroot('systemctl', '--global', 'enable', 'blend-files')
+
+                # Add akshara hook
+                exec_chroot(
+                    'bash', '-c', 'echo \'MODULES=""\' > /etc/mkinitcpio.conf')
+                exec_chroot(
+                    'bash', '-c', 'echo \'BINARIES=""\' >> /etc/mkinitcpio.conf')
+                exec_chroot(
+                    'bash', '-c', 'echo \'FILES=""\' >> /etc/mkinitcpio.conf')
+                exec_chroot(
+                    'bash', '-c', 'echo \'HOOKS="base udev akshara plymouth autodetect modconf block keyboard keymap consolefont filesystems fsck"\' >> /etc/mkinitcpio.conf')
+                exec_chroot(
+                    'bash', '-c', 'echo \'COMPRESSION="zstd"\' >> /etc/mkinitcpio.conf')
+
+                # Refresh package lists, pacman-key --init
+                exec_chroot('pacman', '-Rn', '--noconfirm',
+                            'jade-gui', 'blend-inst-git')
+                exec_chroot('pacman-key', '--init')
+                exec_chroot('pacman-key', '--populate', 'archlinux', 'blend')
+
+                # Disable auto-login for blend user
+                exec_chroot(
+                    'bash', '-c', 'echo "[Theme]" > /etc/sddm.conf.d/default.conf')
+                exec_chroot(
+                    'bash', '-c', 'echo "Current=breeze" >> /etc/sddm.conf.d/default.conf')
+                exec_chroot('rm', '-f', '/etc/gdm/custom.conf')
+
+                # Note to self: since the hook only copies new files in /etc, configuring
+                # Note to self: locales and users isn't required
+
+                # Mark as ready for update on boot
+                exec('touch', '/mnt/iso-update/.ready-for-update')
+
+                # Unmount directories if not already unmounted
+                exec('umount', '-l', '/mnt/iso-update/squashfs-root/dev')
+                exec('umount', '-l', '/mnt/iso-update/squashfs-root/proc')
+
+
+def update_daemon():
+    while True:
+        if not os.path.isfile('/mnt/iso-update/.ready-for-update'):
+            update_system()
+        time.sleep(3600)
+
+
+description = f'''
+{colors.bold}{colors.fg.cyan}usage:{colors.reset}
+  {os.path.basename(sys.argv[0])} [command] [options] [arguments]
+
+{colors.bold}{colors.fg.cyan}version:{colors.reset} {__version}{colors.bold}
+
+This command is not meant to be used by regular users.
+
+{colors.bold}{colors.fg.cyan}available commands{colors.reset}:
+  {colors.bold}help{colors.reset}                  Show this help message and exit.
+  {colors.bold}version{colors.reset}               Show version information and exit.
+
+{colors.bold}{colors.fg.cyan}options for commands{colors.reset}:
+  {colors.bold}-v, --version{colors.reset}         show version information and exit
+'''
+
+epilog = f'''
+{colors.bold}Made with {colors.fg.red}\u2764{colors.reset}{colors.bold} by Rudra Saraswat.{colors.reset}
+'''
+
+parser = argparse.ArgumentParser(description=description, usage=argparse.SUPPRESS,
+                                 epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
+command_map = {'help': 'help',
+               'version': 'version',
+               'update-daemon': 'update_daemon'}
+parser.add_argument('command', choices=command_map.keys(),
+                    help=argparse.SUPPRESS)
+parser.add_argument('-v', '--version', action='version',
+                    version=f'%(prog)s {__version}', help=argparse.SUPPRESS)
+
+if len(sys.argv) == 1:
+    parser.print_help()
+    exit()
+
+if os.geteuid() != 0:
+    error('requires root')
+    exit(1)
+
+args = parser.parse_intermixed_args()
+
+command = command_map[args.command]
+
+if command == 'help':
+    parser.print_help()
+elif command == 'version':
+    parser.parse_args(['--version'])
+else:
+    globals()[command]()

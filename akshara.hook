@@ -1,0 +1,27 @@
+#!/bin/bash
+
+run_latehook() {
+    echo
+
+    # Detect if update downloaded.
+    if [[ -f /new_root/mnt/iso-update/.ready-for-update ]]; then
+        # Available, rename old /usr and move new /usr to /.
+        mv /new_root/usr /new_root/.old.usr
+        mv /new_root/mnt/iso-update/squashfs-root/usr /new_root/usr
+
+        rm -f /new_root/mnt/iso-update/.ready-for-update
+        touch /new_root/mnt/iso-update/.etc-stage
+    fi
+
+    # Detect if /etc stage is active.
+    if [[ -f /new_root/mnt/iso-update/.etc-stage ]]; then
+        # Rename existing /etc.
+        mv /new_root/etc /new_root/.old.etc &>/dev/null || :
+
+        # Create new /etc.
+        cp -a /new_root/.old.etc /new_root/etc
+
+        # Only copy non-existent files.
+        cp -a -n /new_root/mnt/iso-update/squashfs-root/etc/* /new_root/etc
+    fi
+}
