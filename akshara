@@ -21,6 +21,7 @@ import os
 import sys
 import time
 import yaml
+import shutil
 import argparse
 import platform
 import subprocess
@@ -193,7 +194,12 @@ def update_system():
                 exec('umount', '-l', '/mnt/iso-update/squashfs-root/proc')
 
 
-def update_daemon():
+def daemon():
+    exec('mkinitcpio', '-P')
+    exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
+    for dir in os.listdir('/'):
+        if dir.startswith('.old.'):
+            shutil.rmtree('/' + dir)
     while True:
         if not os.path.isfile('/mnt/iso-update/.ready-for-update'):
             update_system()
@@ -206,10 +212,7 @@ description = f'''
 
 {colors.bold}{colors.fg.cyan}version:{colors.reset} {__version}{colors.bold}
 
-This command is not meant to be used by regular users.
-
 {colors.bold}{colors.fg.cyan}available commands{colors.reset}:
-  {colors.bold}help{colors.reset}                  Show this help message and exit.
   {colors.bold}help{colors.reset}                  Show this help message and exit.
   {colors.bold}version{colors.reset}               Show version information and exit.
 
@@ -225,7 +228,7 @@ parser = argparse.ArgumentParser(description=description, usage=argparse.SUPPRES
                                  epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
 command_map = {'help': 'help',
                'version': 'version',
-               'update-daemon': 'update_daemon'}
+               'daemon': daemon}
 parser.add_argument('command', choices=command_map.keys(),
                     help=argparse.SUPPRESS)
 parser.add_argument('-v', '--version', action='version',
@@ -248,4 +251,4 @@ if command == 'help':
 elif command == 'version':
     parser.parse_args(['--version'])
 else:
-    globals()[command]()
+    command()

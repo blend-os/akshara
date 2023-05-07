@@ -8,11 +8,18 @@ run_latehook() {
         # Available, rename old /usr and move new /usr to /.
         mv /new_root/usr /new_root/.old.usr
         mv /new_root/mnt/iso-update/squashfs-root/usr /new_root/usr
+
+        # Update /usr/lib/modules for current kernel version.
+        for kversion in /new_root/.old.usr/lib/modules/*; do
+            if [[ ! -d /new_root/usr/lib/modules/"$(basename "$kversion")" ]]; then
+                mv "$kversion" /new_root/usr/lib/modules/"$(basename "$kversion")"
+            fi
+        done
         
         # Same for /var/lib/pacman.
         mv /new_root/var/lib/pacman /new_root/.old.var.lib.pacman
         mv /new_root/mnt/iso-update/squashfs-root/var/lib/pacman /new_root/var/lib
-        
+
         # Move to /etc stage.
         rm -f /new_root/mnt/iso-update/.ready-for-update
         touch /new_root/mnt/iso-update/.etc-stage
@@ -37,29 +44,33 @@ run_latehook() {
         cp /new_root/mnt/iso-update/squashfs-root/etc/blend_release /new_root/etc
         cp /new_root/mnt/iso-update/squashfs-root/etc/os-release /new_root/etc
         cp /new_root/mnt/iso-update/squashfs-root/etc/lsb-release /new_root/etc
+
+        # Replace kernel and microcode images.
+        mv /new_root/mnt/iso-update/iso/boot/initramfs-linux-zen.img /new_root/boot/initramfs-linux-zen.img
+
+        if [[ -f /boot/amd-ucode.img ]]; then
+            mv /new_root/mnt/iso-update/iso/boot/amd-ucode.img /new_root/boot/amd-ucode.img
+        fi
         
+        if [[ -f /boot/intel-ucode.img ]]; then
+            mv /new_root/mnt/iso-update/iso/boot/intel-ucode.img /new_root/boot/intel-ucode.img
+        fi
+
         # Successful update.
         rm -f /new_root/mnt/iso-update/.etc-stage
         touch /new_root/mnt/iso-update/.successful-update
     fi
     
-    # Create overlay directories
+    # Handle overlays.
+
     rm -rf /new_root/.blend-overlays /new_root/.blendrw
-    
     for i in usr varlibpacman; do
         rm -rf /new_root/.blend-overlays/$i
+        rm -rf /new_root/.blend-overlays/$i.workdir
         mkdir -p /new_root/.blend-overlays/$i
         mkdir -p /new_root/.blend-overlays/$i.workdir
     done
     
-    mount -t overlay overlay -o lowerdir=/new_root/usr:/new_root/.blend-overlays/usr /new_root/usr
-    mount -t overlay overlay -o lowerdir=/new_root/var/lib/pacman:/new_root/.blend-overlays/varlibpacman /new_root/var/lib/pacman
-    
-    mkdir -p /new_root/.blendrw
-    mount "$(findmnt -n -o SOURCE /new_root)" /new_root/.blendrw
-    
-    mount -t overlay overlay -o lowerdir=/new_root/usr,upperdir=/new_root/.blend-overlays/usr,workdir=/new_root/.blend-overlays/usr.workdir
-        /new_root/.blendrw/usr
-    mount -t overlay overlay -o lowerdir=/new_root/var/lib/pacman,upperdir=/new_root/.blend-overlays/varlibpacman,workdir=/new_root/.blend-overlays/varlibpacman.workdir
-        /new_root/.blendrw/var/lib/pacman
+    mount -t overlay overlay -o ro,lowerdir=/new_root/usr,upperdir=/new_root/.blend-overlays/usr,workdir=/new_root/.blend-overlays/usr.workdir /new_root/usr
+    mount -t overlay overlay -o ro,lowerdir=/new_root/var/lib/pacman,upperdir=/new_root/.blend-overlays/varlibpacman,workdir=/new_root/.blend-overlays/varlibpacman.workdir /new_root/var/lib/pacman
 }

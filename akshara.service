@@ -1,0 +1,10 @@
+[Unit]
+Description=Handle system operations
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/akshara daemon
+User=root
+
+[Install]
+WantedBy=multi-user.target
