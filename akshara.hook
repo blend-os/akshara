@@ -9,9 +9,9 @@ run_latehook() {
         mv /new_root/usr /new_root/.old.usr
         mv /new_root/mnt/iso-update/squashfs-root/usr /new_root/usr
         
-        # Same for /var/lib.
-        mv /new_root/var/lib /new_root/.old.var.lib
-        mv /new_root/mnt/iso-update/squashfs-root/var/lib /new_root/var
+        # Same for /var/lib/pacman.
+        mv /new_root/var/lib/pacman /new_root/.old.var.lib.pacman
+        mv /new_root/mnt/iso-update/squashfs-root/var/lib/pacman /new_root/var/lib
         
         # Move to /etc stage.
         rm -f /new_root/mnt/iso-update/.ready-for-update
