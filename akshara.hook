@@ -2,44 +2,64 @@
 
 run_latehook() {
     echo
-
+    
     # Detect if update downloaded.
     if [[ -f /new_root/mnt/iso-update/.ready-for-update ]]; then
         # Available, rename old /usr and move new /usr to /.
         mv /new_root/usr /new_root/.old.usr
         mv /new_root/mnt/iso-update/squashfs-root/usr /new_root/usr
-
+        
         # Same for /var/lib.
         mv /new_root/var/lib /new_root/.old.var.lib
         mv /new_root/mnt/iso-update/squashfs-root/var/lib /new_root/var
-
+        
         # Move to /etc stage.
         rm -f /new_root/mnt/iso-update/.ready-for-update
         touch /new_root/mnt/iso-update/.etc-stage
     fi
-
+    
     # Detect if /etc stage is active.
     if [[ -f /new_root/mnt/iso-update/.etc-stage ]]; then
         # Rename existing /etc.
         mv /new_root/etc /new_root/.old.etc &>/dev/null || :
-
+        
         # Create new /etc.
         cp -a /new_root/.old.etc /new_root/etc
-
+        
         # Only copy non-existent files.
         cp -a -n /new_root/mnt/iso-update/squashfs-root/etc/* /new_root/etc
-
-        # Update pacman config.
+        
+        # Update pacman config, and other system files that aren't
+        # supposed to be edited.
         cp /new_root/mnt/iso-update/squashfs-root/etc/pacman.conf /new_root/etc
         rm -rf /new_root/etc/pacman.d
         cp -r /new_root/mnt/iso-update/squashfs-root/etc/pacman.d /new_root/etc
-
+        cp /new_root/mnt/iso-update/squashfs-root/etc/blend_release /new_root/etc
+        cp /new_root/mnt/iso-update/squashfs-root/etc/os-release /new_root/etc
+        cp /new_root/mnt/iso-update/squashfs-root/etc/lsb-release /new_root/etc
+        
         # Successful update.
         rm -f /new_root/mnt/iso-update/.etc-stage
         touch /new_root/mnt/iso-update/.successful-update
     fi
-
+    
     # Create overlay directories
     rm -rf /new_root/.blend-overlays /new_root/.blendrw
-    mkdir -p /new_root/.blend-overlays/{usr,varlib,etcpacman}
+    
+    for i in usr varlibpacman; do
+        rm -rf /new_root/.blend-overlays/$i
+        mkdir -p /new_root/.blend-overlays/$i
+        mkdir -p /new_root/.blend-overlays/$i.workdir
+    done
+    
+    mount -t overlay overlay -o lowerdir=/new_root/usr:/new_root/.blend-overlays/usr /new_root/usr
+    mount -t overlay overlay -o lowerdir=/new_root/var/lib/pacman:/new_root/.blend-overlays/varlibpacman /new_root/var/lib/pacman
+    
+    mkdir -p /new_root/.blendrw
+    mount "$(findmnt /new_root)" /new_root/.blendrw
+    
+    mount -t overlay overlay -o lowerdir=/new_root/usr,upperdir=/new_root/.blend-overlays/usr,workdir=/new_root/.blend-overlays/usr.workdir
+        /new_root/.blendrw/usr
+    mount -t overlay overlay -o lowerdir=/new_root/var/lib/pacman,upperdir=/new_root/.blend-overlays/varlibpacman,workdir=/new_root/.blend-overlays/varlibpacman.workdir
+        /new_root/.blendrw/var/lib/pacman
 }

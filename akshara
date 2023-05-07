@@ -210,6 +210,7 @@ This command is not meant to be used by regular users.
 
 {colors.bold}{colors.fg.cyan}available commands{colors.reset}:
   {colors.bold}help{colors.reset}                  Show this help message and exit.
+  {colors.bold}help{colors.reset}                  Show this help message and exit.
   {colors.bold}version{colors.reset}               Show version information and exit.
 
 {colors.bold}{colors.fg.cyan}options for commands{colors.reset}:
