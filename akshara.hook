@@ -56,7 +56,7 @@ run_latehook() {
     mount -t overlay overlay -o lowerdir=/new_root/var/lib/pacman:/new_root/.blend-overlays/varlibpacman /new_root/var/lib/pacman
     
     mkdir -p /new_root/.blendrw
-    mount "$(findmnt /new_root)" /new_root/.blendrw
+    mount "$(findmnt -n -o SOURCE /new_root)" /new_root/.blendrw
     
     mount -t overlay overlay -o lowerdir=/new_root/usr,upperdir=/new_root/.blend-overlays/usr,workdir=/new_root/.blend-overlays/usr.workdir
         /new_root/.blendrw/usr
