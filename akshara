@@ -305,6 +305,7 @@ def handle_system_packages(install):
     else:
         info("you are requested to review the operation's output")
         info("press ENTER to proceed with making overlay permanent, or ^C to abort")
+        info("(aborting will also remove any packages installed previously without rebooting)")
         try:
             input()
         except EOFError:
@@ -342,8 +343,14 @@ description = f'''
 
 {colors.bold}{colors.fg.cyan}version:{colors.reset} {__version}{colors.bold}
 
+This CLI is only meant for developers familiar with blendOS and the akshara codebase.
+
+blendOS is not responsible for any system breakage.
+
 {colors.bold}{colors.fg.cyan}available commands{colors.reset}:
   {colors.bold}help{colors.reset}                  Show this help message and exit.
+  {colors.bold}install{colors.reset}               Install system drivers/packages.
+  {colors.bold}remove{colors.reset}                Remove system drivers/packages.
   {colors.bold}version{colors.reset}               Show version information and exit.
 
 {colors.bold}{colors.fg.cyan}options for commands{colors.reset}:
