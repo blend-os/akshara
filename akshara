@@ -212,6 +212,11 @@ def handle_system_packages(install):
         error('no packages specified')
         exit(1)
 
+    for pkg in args.pkg:
+        if pkg.startswith('-'):
+            error(f'invalid package {pkg}')
+            exit(1)
+
     if is_running():
         error('already running')
         exit(1)
@@ -275,7 +280,7 @@ def handle_system_packages(install):
         if args.noconfirm:
             operation.append('--noconfirm')
 
-    if exec('systemd-nspawn', '-D', '/.blendrw', '--', 'pacman', *operation, '--', *args.pkg, stdout=sys.stdout, stderr=sys.stderr) != 0:
+    if exec('systemd-nspawn', '-D', '/.blendrw', 'pacman', *operation, *args.pkg, stdout=sys.stdout, stderr=sys.stderr) != 0:
         error('error occurred during installation, abandoning changes')
         while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
             pass
