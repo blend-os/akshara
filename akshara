@@ -21,6 +21,7 @@ import os
 import sys
 import time
 import yaml
+import psutil
 import shutil
 import argparse
 import platform
@@ -76,8 +77,20 @@ class colors:
 
 
 def exec(*cmd, **kwargs):
-    return subprocess.call(cmd, shell=False, stdout=sys.stdout,
-                           stderr=sys.stderr, **kwargs)
+    return subprocess.call(cmd, shell=False, **kwargs)
+
+
+def is_running():
+    instances = 0
+
+    for p in psutil.process_iter():
+        if p.name() == 'python3':
+            if len(p.cmdline()) > 0 and 'akshara' in p.cmdline()[1]:
+                instances += 1
+                if instances == 2:
+                    return True
+
+    return False
 
 
 def exec_chroot(*cmd, **kwargs):
@@ -194,6 +207,37 @@ def update_system():
                 exec('umount', '-l', '/mnt/iso-update/squashfs-root/proc')
 
 
+def install_system_package():
+    if is_running():
+        error('already running')
+        exit(1)
+
+    exec('mkdir', '-p', '/.blendrw')
+    if exec('findmnt', '/.blendrw/usr') != 0:
+        exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if exec('findmnt', '/.blendrw/var/lib/pacman') != 0:
+        exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if exec('findmnt', '/.blendrw') != 0:
+        exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    for old_overlay in os.listdir('/mnt'):
+        if old_overlay.startswith('.blend-tmp-overlay-'):
+            exec('rm', '-rf', f'/mnt/{old_overlay}')
+    usr_overlay = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode()
+    usr_overlay_workdir = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode()
+    varlibpacman_overlay = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode()
+    varlibpacman_overlay_workdir = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode()
+    if '' in (usr_overlay, usr_overlay_workdir, varlibpacman_overlay, varlibpacman_overlay_workdir):
+        for old_overlay in os.listdir('/mnt'):
+            if old_overlay.startswith('.blend-tmp-overlay-'):
+                exec('rm', '-rf', f'/mnt/{old_overlay}')
+        error('error during overlay creation')
+        exit(1)
+    exec('mkdir', '-p', '/.blend-rw')
+    exec('mount', subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'], stdout=subprocess.PIPE).stdout.decode(), '/.blend-rw')
+    exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/.blend-rw/usr')
+    exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blend-rw/var/lib/pacman')
+
+
 def daemon():
     exec('mkinitcpio', '-P')
     exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
@@ -228,9 +272,12 @@ parser = argparse.ArgumentParser(description=description, usage=argparse.SUPPRES
                                  epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
 command_map = {'help': 'help',
                'version': 'version',
+               'install': install_system_package,
                'daemon': daemon}
 parser.add_argument('command', choices=command_map.keys(),
                     help=argparse.SUPPRESS)
+parser.add_argument('-y', '--noconfirm',
+                    action='store_true', help=argparse.SUPPRESS)
 parser.add_argument('-v', '--version', action='version',
                     version=f'%(prog)s {__version}', help=argparse.SUPPRESS)
 
@@ -238,7 +285,7 @@ if len(sys.argv) == 1:
     parser.print_help()
     exit()
 
-if os.geteuid() != 0:
+if os.geteuid() != 0 and not sys.argv[1] in ('help', 'version', '-v', '--version'):
     error('requires root')
     exit(1)
 
