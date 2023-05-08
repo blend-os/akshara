@@ -253,7 +253,7 @@ def handle_system_packages(install):
     if os.path.isdir('/.blend-overlays/future-varlibpacman'):
         exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
         exec('rm', '-rf', varlibpacman_overlay)
-        exec('mv', '/.blend-overlays/future-varlibpacman', usr_overlay)
+        exec('mv', '/.blend-overlays/future-varlibpacman', varlibpacman_overlay)
     varlibpacman_overlay_workdir = subprocess.run(
         ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
     exec('chmod', '=rw', varlibpacman_overlay_workdir)
