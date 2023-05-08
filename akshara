@@ -232,10 +232,10 @@ def install_system_package():
                 exec('rm', '-rf', f'/mnt/{old_overlay}')
         error('error during overlay creation')
         exit(1)
-    exec('mkdir', '-p', '/.blend-rw')
-    exec('mount', subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'], stdout=subprocess.PIPE).stdout.decode().strip(), '/.blend-rw')
-    exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/.blend-rw/usr')
-    exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blend-rw/var/lib/pacman')
+    exec('mkdir', '-p', '/.blendrw')
+    exec('mount', subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'], stdout=subprocess.PIPE).stdout.decode().strip(), '/.blendrw')
+    exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/.blendrw/usr')
+    exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blendrw/var/lib/pacman')
 
 
 def daemon():
