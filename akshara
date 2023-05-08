@@ -366,5 +366,5 @@ try:
         command(args.command)
     else:
         command()
-except:
+except KeyboardInterrupt:
     error('aborting')
