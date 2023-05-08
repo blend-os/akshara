@@ -222,10 +222,10 @@ def install_system_package():
     for old_overlay in os.listdir('/mnt'):
         if old_overlay.startswith('.blend-tmp-overlay-'):
             exec('rm', '-rf', f'/mnt/{old_overlay}')
-    usr_overlay = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode()
-    usr_overlay_workdir = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode()
-    varlibpacman_overlay = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode()
-    varlibpacman_overlay_workdir = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode()
+    usr_overlay = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().trim()
+    usr_overlay_workdir = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().trim()
+    varlibpacman_overlay = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().trim()
+    varlibpacman_overlay_workdir = subprocess.run(['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().trim()
     if '' in (usr_overlay, usr_overlay_workdir, varlibpacman_overlay, varlibpacman_overlay_workdir):
         for old_overlay in os.listdir('/mnt'):
             if old_overlay.startswith('.blend-tmp-overlay-'):
@@ -233,7 +233,7 @@ def install_system_package():
         error('error during overlay creation')
         exit(1)
     exec('mkdir', '-p', '/.blend-rw')
-    exec('mount', subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'], stdout=subprocess.PIPE).stdout.decode(), '/.blend-rw')
+    exec('mount', subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'], stdout=subprocess.PIPE).stdout.decode().trim(), '/.blend-rw')
     exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/.blend-rw/usr')
     exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blend-rw/var/lib/pacman')
 
