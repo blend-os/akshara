@@ -213,12 +213,12 @@ def install_system_package():
         exit(1)
 
     exec('mkdir', '-p', '/.blendrw')
-    if exec('findmnt', '/.blendrw/usr') != 0:
-        exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if exec('findmnt', '/.blendrw/var/lib/pacman') != 0:
-        exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    if exec('findmnt', '/.blendrw') != 0:
-        exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+        pass
+    while exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+        pass
+    while exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+        pass
     for old_overlay in os.listdir('/mnt'):
         if old_overlay.startswith('.blend-tmp-overlay-'):
             exec('rm', '-rf', f'/mnt/{old_overlay}')
