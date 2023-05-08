@@ -207,7 +207,7 @@ def update_system():
                 exec('umount', '-l', '/mnt/iso-update/squashfs-root/proc')
 
 
-def install_system_package():
+def handle_system_packages(install):
     if is_running():
         error('already running')
         exit(1)
@@ -236,6 +236,54 @@ def install_system_package():
     exec('mount', subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'], stdout=subprocess.PIPE).stdout.decode().strip(), '/.blendrw')
     exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/.blendrw/usr')
     exec('mount', '-t', 'overlay', 'overlay', '-o', f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blendrw/var/lib/pacman')
+
+    if install == 'install':
+        operation = ['-Sy']
+        if args.noconfirm:
+            operation.append('--noconfirm')
+    elif install == 'remove':
+        operation = '-Rn'
+        if args.noconfirm:
+            operation.append('--noconfirm')
+
+    if exec('systemd-nspawn', 'pacman', *operation, '--', *args.pkg) != 0:
+        error('error occurred during installation, abandoning changes')
+        while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+            pass
+        while exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+            pass
+        while exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+            pass
+        for old_overlay in os.listdir('/mnt'):
+            if old_overlay.startswith('.blend-tmp-overlay-'):
+                exec('rm', '-rf', f'/mnt/{old_overlay}')
+    elif args.headless:
+        while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+            pass
+        while exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+            pass
+        while exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+            pass
+        exec('mv', usr_overlay, '/.blend-overlays/future-usr')
+        exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
+        exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
+    else:
+        info("you are requested to review the operation's output")
+        info("press ENTER to proceed with making overlay permanent, or ^C to abort")
+        try:
+            input()
+        except EOFError:
+            exit()
+
+        while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+            pass
+        while exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+            pass
+        while exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
+            pass
+        exec('mv', usr_overlay, '/.blend-overlays/future-usr')
+        exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
+        exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
 
 
 def daemon():
@@ -272,11 +320,14 @@ parser = argparse.ArgumentParser(description=description, usage=argparse.SUPPRES
                                  epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
 command_map = {'help': 'help',
                'version': 'version',
-               'install': install_system_package,
+               'install': handle_system_packages,
+               'remove': handle_system_packages,
                'daemon': daemon}
 parser.add_argument('command', choices=command_map.keys(),
                     help=argparse.SUPPRESS)
 parser.add_argument('-y', '--noconfirm',
+                    action='store_true', help=argparse.SUPPRESS)
+parser.add_argument('--headless',
                     action='store_true', help=argparse.SUPPRESS)
 parser.add_argument('-v', '--version', action='version',
                     version=f'%(prog)s {__version}', help=argparse.SUPPRESS)
@@ -293,9 +344,14 @@ args = parser.parse_intermixed_args()
 
 command = command_map[args.command]
 
-if command == 'help':
-    parser.print_help()
-elif command == 'version':
-    parser.parse_args(['--version'])
-else:
-    command()
+try:
+    if command == 'help':
+        parser.print_help()
+    elif command == 'version':
+        parser.parse_args(['--version'])
+    elif command == handle_system_packages:
+        command(args.command)
+    else:
+        command()
+except:
+    error('aborting')
