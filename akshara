@@ -216,10 +216,10 @@ def handle_system_packages(install):
         error('already running')
         exit(1)
 
-    info('this command will discard any system packages installed')
-    info("previously if you didn't reboot after instlling them")
+    info("if this operation fails, any system packages installed previously")
+    info('without rebooting shall be removed')
     print()
-    info('this should __only__ be used for the installation of drivers')
+    info('this command should __only__ be used for the installation of drivers')
     info('blendOS is __not__ responsible for any system breakage')
 
     exec('mkdir', '-p', '/.blendrw')
@@ -235,12 +235,20 @@ def handle_system_packages(install):
     usr_overlay = subprocess.run(
         ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
     exec('chmod', '=rw', usr_overlay)
+    if os.path.isdir('/.blend-overlays/future-usr'):
+        exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
+        exec('rm', '-rf', usr_overlay)
+        exec('mv', '/.blend-overlays/future-usr', usr_overlay)
     usr_overlay_workdir = subprocess.run(
         ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
     exec('chmod', '=rw', usr_overlay_workdir)
     varlibpacman_overlay = subprocess.run(
         ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
     exec('chmod', '=rw', varlibpacman_overlay)
+    if os.path.isdir('/.blend-overlays/future-varlibpacman'):
+        exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
+        exec('rm', '-rf', varlibpacman_overlay)
+        exec('mv', '/.blend-overlays/future-varlibpacman', usr_overlay)
     varlibpacman_overlay_workdir = subprocess.run(
         ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
     exec('chmod', '=rw', varlibpacman_overlay_workdir)
@@ -306,6 +314,8 @@ def handle_system_packages(install):
         exec('mv', usr_overlay, '/.blend-overlays/future-usr')
         exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
         exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
+        exec('touch', '/.blend-overlays/future-usr/.okay')
+        exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
         info('reboot to apply changes')
 
 
