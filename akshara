@@ -228,12 +228,16 @@ def handle_system_packages(install):
             exec('rm', '-rf', f'/mnt/{old_overlay}')
     usr_overlay = subprocess.run(
         ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
+    exec('chmod', '=rw', usr_overlay)
     usr_overlay_workdir = subprocess.run(
         ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
+    exec('chmod', '=rw', usr_overlay_workdir)
     varlibpacman_overlay = subprocess.run(
         ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
+    exec('chmod', '=rw', varlibpacman_overlay)
     varlibpacman_overlay_workdir = subprocess.run(
         ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
+    exec('chmod', '=rw', varlibpacman_overlay_workdir)
     if '' in (usr_overlay, usr_overlay_workdir, varlibpacman_overlay, varlibpacman_overlay_workdir):
         for old_overlay in os.listdir('/mnt'):
             if old_overlay.startswith('.blend-tmp-overlay-'):
