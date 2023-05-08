@@ -208,7 +208,7 @@ def update_system():
 
 
 def handle_system_packages(install):
-    if len(args.pkgs) == 0:
+    if len(args.pkg) == 0:
         error('no packages specified')
         exit(1)
 
