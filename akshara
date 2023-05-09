@@ -24,9 +24,8 @@ import yaml
 import shutil
 import argparse
 import platform
+import fasteners
 import subprocess
-
-from lockfile import LockFile
 
 __version = '1.0.0'
 
@@ -383,13 +382,9 @@ try:
         parser.parse_args(['--version'])
     elif command == handle_system_packages:
         exec('touch', '/var/lib/.akshara-system-lock')
-        system_lock = LockFile('/var/lib/.akshara-system-lock')
-        if not system_lock.is_locked():
-            system_lock.acquire()
-        else:
-            error('system operation already in progress')
-            exit(1)
-        command(args.command)
+        system_lock = fasteners.InterProcessLock('/var/lib/.akshara-system-lock')
+        with system_lock:
+            command(args.command)
     else:
         command()
 except KeyboardInterrupt:
