@@ -259,7 +259,7 @@ def handle_system_packages(operation):
          f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blendrw/var/lib/pacman')
 
     if operation == 'set-custom-packages':
-        operation = ['-Sy', '--needed']
+        operation = ['-Sy', '--needed', '--noconfirm']
     elif operation == 'drop-overlay':
         exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
         exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
