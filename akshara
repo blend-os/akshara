@@ -21,11 +21,12 @@ import os
 import sys
 import time
 import yaml
-import psutil
 import shutil
 import argparse
 import platform
 import subprocess
+
+from lockfile import LockFile
 
 __version = '1.0.0'
 
@@ -78,19 +79,6 @@ class colors:
 
 def exec(*cmd, **kwargs):
     return subprocess.call(cmd, shell=False, **kwargs)
-
-
-def is_running():
-    instances = 0
-
-    for p in psutil.process_iter():
-        if p.name() == 'python3':
-            if len(p.cmdline()) > 0 and 'akshara' in p.cmdline()[1]:
-                instances += 1
-                if instances == 2:
-                    return True
-
-    return False
 
 
 def exec_chroot(*cmd, **kwargs):
@@ -207,25 +195,24 @@ def update_system():
                 exec('umount', '-l', '/mnt/iso-update/squashfs-root/proc')
 
 
-def handle_system_packages(install):
+def handle_system_packages(operation):
     if len(args.pkg) == 0:
         error('no packages specified')
         exit(1)
 
-    for pkg in args.pkg:
-        if pkg.startswith('-'):
-            error(f'invalid package {pkg}')
-            exit(1)
-
-    if is_running():
-        error('already running')
-        exit(1)
-
-    info("if this operation fails, any system packages installed previously")
-    info('without rebooting shall be removed')
+    if operation == 'set-custom-packages':
+        info('this operation will replace the current overlay on the next boot')
+        info('(any custom system packages/drivers installed earlier will be removed)')
+        print()
+        info('this command should __only__ be used for the installation of drivers')
+        info('blendOS is __not__ responsible for any system breakage')
+    elif operation == 'drop-packages':
+        info('any installed packages will be removed')
+    else:
+        error('unsupported operation')
     print()
-    info('this command should __only__ be used for the installation of drivers')
-    info('blendOS is __not__ responsible for any system breakage')
+
+    time.sleep(2)
 
     exec('mkdir', '-p', '/.blendrw')
     while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
@@ -271,14 +258,14 @@ def handle_system_packages(install):
     exec('mount', '-t', 'overlay', 'overlay', '-o',
          f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blendrw/var/lib/pacman')
 
-    if install == 'install':
+    if operation == 'set-custom-packages':
         operation = ['-Sy']
         if args.noconfirm:
             operation.append('--noconfirm')
-    elif install == 'remove':
-        operation = ['-Rn']
-        if args.noconfirm:
-            operation.append('--noconfirm')
+    elif operation == 'drop-overlay':
+        exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
+        exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
+        exit()
 
     if exec('systemd-nspawn', '-D', '/.blendrw', '--', 'pacman', *operation, '--', *args.pkg, stdout=sys.stdout, stderr=sys.stderr) != 0:
         error('error occurred during installation, abandoning changes')
@@ -301,6 +288,8 @@ def handle_system_packages(install):
         exec('mv', usr_overlay, '/.blend-overlays/future-usr')
         exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
         exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
+        exec('touch', '/.blend-overlays/future-usr/.okay')
+        exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
         info('reboot to apply changes')
     else:
         info("you are requested to review the operation's output")
@@ -365,8 +354,8 @@ parser = argparse.ArgumentParser(description=description, usage=argparse.SUPPRES
                                  epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
 command_map = {'help': 'help',
                'version': 'version',
-               'install': handle_system_packages,
-               'remove': handle_system_packages,
+               'set-custom-packages': handle_system_packages,
+               'drop-overlay': handle_system_packages,
                'daemon': daemon}
 parser.add_argument('command', choices=command_map.keys(),
                     help=argparse.SUPPRESS)
@@ -397,6 +386,13 @@ try:
     elif command == 'version':
         parser.parse_args(['--version'])
     elif command == handle_system_packages:
+        exec('touch', '/var/lib/.akshara-system-lock')
+        system_lock = LockFile('/var/lib/.akshara-system-lock')
+        if not system_lock.is_locked():
+            system_lock.acquire()
+        else:
+            error('system operation already in progress')
+            exit(1)
         command(args.command)
     else:
         command()

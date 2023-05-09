@@ -2,7 +2,10 @@
 
 run_latehook() {
     echo
-    
+
+    # Remove /new_root/mnt/iso-update/.successful-update if exists
+    rm -f /new_root/mnt/iso-update/.successful-update
+
     # Detect if update downloaded.
     if [[ -f /new_root/mnt/iso-update/.ready-for-update ]]; then
         # Available, rename old /usr and move new /usr to /.
@@ -63,10 +66,20 @@ run_latehook() {
     
     # Handle overlays.
 
-    rm -rf /new_root/.blend-overlays /new_root/.blendrw
+    if [[ ! -f /new_root/mnt/iso-update/.successful-update ]]; then
+        if [[ -f '/new_root/.blend-overlays/future-usr/.okay' ]] && [[ -f '/new_root/.blend-overlays/future-varlibpacman/.okay' ]]; then
+            for i in usr varlibpacman; do
+                rm -rf /new_root/.blend-overlays/$i
+                mv /new_root/.blend-overlays/future-$i /new_root/.blend-overlays/$i
+            done
+        else
+            rm -rf /new_root/.blend-overlays /new_root/.blendrw
+        fi
+    else
+        rm -rf /new_root/.blend-overlays /new_root/.blendrw
+    fi
+
     for i in usr varlibpacman; do
-        rm -rf /new_root/.blend-overlays/$i
-        rm -rf /new_root/.blend-overlays/$i.workdir
         mkdir -p /new_root/.blend-overlays/$i
         mkdir -p /new_root/.blend-overlays/$i.workdir
     done
