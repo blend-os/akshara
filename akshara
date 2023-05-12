@@ -183,6 +183,16 @@ def update_system():
                     'bash', '-c', 'echo "Current=breeze" >> /etc/sddm.conf.d/default.conf')
                 exec_chroot('rm', '-f', '/etc/gdm/custom.conf')
 
+                # Install custom system packages
+                exec('touch', '/.custom_pkg_list')
+                exec('cp', '/.custom_pkg_list', '/mnt/iso-update/squashfs-root')
+                with open('/.custom_pkg_list') as custompkglist_file:
+                    custompkglist = []
+                    while line := custompkglist_file.readline():
+                        if line.strip() != '':
+                            custompkglist.append(line.strip())
+                    exec_chroot('pacman', '-Sy', '--needed', '--noconfirm', *custompkglist)
+
                 # Note to self: since the hook only copies new files in /etc, configuring
                 # Note to self: locales and users isn't required
 
@@ -199,13 +209,18 @@ def handle_system_packages(operation):
         error('no packages specified')
         exit(1)
 
+    for pkg in args.pkg:
+        if pkg.startswith('linux'):
+            error('you may not install linux* packages')
+            exit(1)
+
     if operation == 'set-custom-packages':
         info('this operation will replace the current overlay on the next boot')
         info('(any custom system packages/drivers installed earlier will be removed)')
         print()
         info('this command should __only__ be used for the installation of drivers')
         info('blendOS is __not__ responsible for any system breakage')
-    elif operation == 'drop-packages':
+    elif operation == 'drop-overlay':
         info('any installed packages will be removed')
     else:
         error('unsupported operation')
@@ -262,6 +277,8 @@ def handle_system_packages(operation):
     elif operation == 'drop-overlay':
         exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
         exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
+        exec('rm', '-f', '/.custom_pkg_list')
+        exec('touch', '/.custom_pkg_list')
         exit()
 
     if exec('systemd-nspawn', '-D', '/.blendrw', '--', 'pacman', *operation, '--', *args.pkg, stdout=sys.stdout, stderr=sys.stderr) != 0:
@@ -285,6 +302,9 @@ def handle_system_packages(operation):
         exec('mv', usr_overlay, '/.blend-overlays/future-usr')
         exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
         exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
+        exec('bash', '-c', "printf > /.custom_pkg_list")
+        for pkg in args.pkg:
+            exec('bash', '-c', f"echo '{pkg}' >> /.custom_pkg_list")
         exec('touch', '/.blend-overlays/future-usr/.okay')
         exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
         info('reboot to apply changes')
@@ -306,6 +326,9 @@ def handle_system_packages(operation):
         exec('mv', usr_overlay, '/.blend-overlays/future-usr')
         exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
         exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
+        exec('bash', '-c', "printf > /.custom_pkg_list")
+        for pkg in args.pkg:
+            exec('bash', '-c', f"echo '{pkg}' >> /.custom_pkg_list")
         exec('touch', '/.blend-overlays/future-usr/.okay')
         exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
         info('reboot to apply changes')

@@ -3,6 +3,8 @@
 run_latehook() {
     echo
 
+    touch /new_root/.custom_pkg_list
+
     # Remove /new_root/mnt/iso-update/.successful-update if exists
     rm -f /new_root/mnt/iso-update/.successful-update
 
@@ -11,6 +13,9 @@ run_latehook() {
         # Available, rename old /usr and move new /usr to /.
         mv /new_root/usr /new_root/.old.usr
         mv /new_root/mnt/iso-update/squashfs-root/usr /new_root/usr
+
+        # Copy package list
+        mv /new_root/mnt/iso-update/squashfs-root/.custom_pkg_list /new_root
 
         # Update /usr/lib/modules for current kernel version.
         for kversion in /new_root/.old.usr/lib/modules/*; do
