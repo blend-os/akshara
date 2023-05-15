@@ -205,7 +205,7 @@ def update_system():
 
 
 def handle_system_packages(operation):
-    if len(args.pkg) == 0:
+    if len(args.pkg) == 0 and operation != 'drop-overlay':
         error('no packages specified')
         exit(1)
 
@@ -302,7 +302,7 @@ def handle_system_packages(operation):
         exec('mv', usr_overlay, '/.blend-overlays/future-usr')
         exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
         exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
-        exec('bash', '-c', "printf > /.custom_pkg_list")
+        exec('bash', '-c', "printf '' > /.custom_pkg_list")
         for pkg in args.pkg:
             exec('bash', '-c', f"echo '{pkg}' >> /.custom_pkg_list")
         exec('touch', '/.blend-overlays/future-usr/.okay')
