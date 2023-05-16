@@ -64,6 +64,10 @@ run_latehook() {
             mv /new_root/mnt/iso-update/iso/boot/intel-ucode.img /new_root/boot/intel-ucode.img
         fi
 
+        for i in usr varlibpacman; do
+            rm -f /new_root/.blend-overlays/$i/.okay
+        done
+
         # Successful update.
         rm -f /new_root/mnt/iso-update/.etc-stage
         touch /new_root/mnt/iso-update/.successful-update
