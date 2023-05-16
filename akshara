@@ -154,6 +154,7 @@ def update_system():
                 ########################
 
                 # Enable services
+                exec_chroot('systemctl', 'enable', 'akshara')
                 exec_chroot('systemctl', 'enable', 'bluetooth')
                 exec_chroot('systemctl', 'enable', 'cups')
                 exec_chroot('systemctl', '--global', 'enable', 'blend-files')
@@ -213,6 +214,10 @@ def handle_system_packages(operation):
         if pkg.startswith('linux'):
             error('you may not install linux* packages')
             exit(1)
+
+    if os.path.isfile('/mnt/iso-update/.ready-for-update'):
+        error('an update was downloaded in the background, you')
+        error('must reboot before installing any system packages')
 
     if operation == 'set-custom-packages':
         info('this operation will replace the current overlay on the next boot')
@@ -342,8 +347,11 @@ def daemon():
             shutil.rmtree('/' + dir)
     while True:
         if not os.path.isfile('/mnt/iso-update/.ready-for-update'):
-            update_system()
-        time.sleep(3600)
+            exec('touch', '/var/lib/.akshara-system-lock')
+            system_lock = fasteners.InterProcessLock('/var/lib/.akshara-system-lock')
+            with system_lock:
+                update_system()
+        time.sleep(300)
 
 
 description = f'''
@@ -406,6 +414,8 @@ try:
     elif command == handle_system_packages:
         exec('touch', '/var/lib/.akshara-system-lock')
         system_lock = fasteners.InterProcessLock('/var/lib/.akshara-system-lock')
+        info('attempting to acquire system lock')
+        print()
         with system_lock:
             command(args.command)
     else:
