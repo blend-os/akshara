@@ -307,7 +307,7 @@ def handle_system_packages(operation):
         exec('mv', usr_overlay, '/.blend-overlays/future-usr')
         exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
         exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
-        exec('bash', '-c', "printf '' > /.custom_pkg_list")
+        exec('bash', '-c', "echo -n > /.custom_pkg_list")
         for pkg in args.pkg:
             exec('bash', '-c', f"echo '{pkg}' >> /.custom_pkg_list")
         exec('touch', '/.blend-overlays/future-usr/.okay')

@@ -82,10 +82,10 @@ run_latehook() {
                 mv /new_root/.blend-overlays/future-$i /new_root/.blend-overlays/$i
             done
         else
-            rm -rf /new_root/.blend-overlays /new_root/.blendrw
+            rm -rf /new_root/.blend-overlays/usr.workdir /new_root/.blend-overlays/varlibpacman.workdir
         fi
     else
-        rm -rf /new_root/.blend-overlays /new_root/.blendrw
+        rm -rf /new_root/.blend-overlays
     fi
 
     for i in usr varlibpacman; do
