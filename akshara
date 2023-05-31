@@ -204,7 +204,7 @@ def update_system():
                 exec('chmod', '-R', '755', varlibpacman_overlay_workdir)
 
                 exec('mount', '-t', 'overlay', 'overlay', '-o',
-                    f'lowerdir=/mnt/iso-update/squashfs-root/,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/mnt/iso-update/squashfs-root/usr')
+                    f'lowerdir=/mnt/iso-update/squashfs-root/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/mnt/iso-update/squashfs-root/usr')
 
                 exec('mount', '-t', 'overlay', 'overlay', '-o',
                     f'lowerdir=/mnt/iso-update/squashfs-root/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/mnt/iso-update/squashfs-root/var/lib/pacman')
@@ -225,10 +225,10 @@ def update_system():
                 # Unmount and rename overlays
                 exec('umount', '-l', '/mnt/iso-update/squashfs-root/usr')
                 exec('umount', '-l', '/mnt/iso-update/squashfs-root/var/lib/pacman')
-                exec('mv', usr_overlay, '/mnt/iso-update/future-usr')
-                exec('mv', varlibpacman_overlay, '/mnt/iso-update/future-varlibpacman')
-                exec('touch', '/mnt/iso-update/future-usr/.okay')
-                exec('touch', '/mnt/iso-update/future-varlibpacman/.okay')
+                exec('mv', usr_overlay, '/.blend-overlays/future-usr')
+                exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
+                exec('touch', '/.blend-overlays/future-usr/.okay')
+                exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
 
                 # Mark as ready for update on boot
                 exec('touch', '/mnt/iso-update/.ready-for-update')
