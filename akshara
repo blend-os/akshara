@@ -204,10 +204,10 @@ def update_system():
                 exec('chmod', '-R', '755', varlibpacman_overlay_workdir)
 
                 exec('mount', '-t', 'overlay', 'overlay', '-o',
-                    f'lowerdir=/var/lib/pacman,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/mnt/iso-update/squashfs-root/usr')
+                    f'lowerdir=/mnt/iso-update/squashfs-root/,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/mnt/iso-update/squashfs-root/usr')
 
                 exec('mount', '-t', 'overlay', 'overlay', '-o',
-                    f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/mnt/iso-update/squashfs-root/var/lib/pacman')
+                    f'lowerdir=/mnt/iso-update/squashfs-root/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/mnt/iso-update/squashfs-root/var/lib/pacman')
 
                 # Install custom system packages
                 exec('touch', '/.custom_pkg_list')

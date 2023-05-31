@@ -75,17 +75,13 @@ run_latehook() {
     
     # Handle overlays.
 
-    if [[ ! -f /new_root/mnt/iso-update/.successful-update ]]; then
-        if [[ -f '/new_root/.blend-overlays/future-usr/.okay' ]] && [[ -f '/new_root/.blend-overlays/future-varlibpacman/.okay' ]]; then
-            for i in usr varlibpacman; do
-                rm -rf /new_root/.blend-overlays/$i
-                mv /new_root/.blend-overlays/future-$i /new_root/.blend-overlays/$i
-            done
-        else
-            rm -rf /new_root/.blend-overlays/usr.workdir /new_root/.blend-overlays/varlibpacman.workdir
-        fi
+    if [[ -f '/new_root/.blend-overlays/future-usr/.okay' ]] && [[ -f '/new_root/.blend-overlays/future-varlibpacman/.okay' ]]; then
+        for i in usr varlibpacman; do
+            rm -rf /new_root/.blend-overlays/$i
+            mv /new_root/.blend-overlays/future-$i /new_root/.blend-overlays/$i
+        done
     else
-        rm -rf /new_root/.blend-overlays
+        rm -rf /new_root/.blend-overlays/usr.workdir /new_root/.blend-overlays/varlibpacman.workdir
     fi
 
     for i in usr varlibpacman; do
