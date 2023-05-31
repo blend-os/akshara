@@ -98,7 +98,7 @@ def get_server_timestamp():
     with open('/etc/blend_release') as blend_release_file:
         track = yaml.load(blend_release_file, Loader=yaml.FullLoader)['track']
     server_version_output = subprocess.run(
-        ['curl', '--silent', '--show-error', f'{server_url}/track/{track}/current'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        ['curl', '--silent', '-L', '--show-error', f'{server_url}/track/{track}/current'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if server_version_output.stderr.decode().strip() != '':
         return 0
     elif server_version_output.stdout.decode().strip() != '' and server_version_output.stdout.decode().strip().isnumeric():
@@ -184,6 +184,31 @@ def update_system():
                     'bash', '-c', 'echo "Current=breeze" >> /etc/sddm.conf.d/default.conf')
                 exec_chroot('rm', '-f', '/etc/gdm/custom.conf')
 
+                usr_overlay = subprocess.run(
+                    ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
+                exec('chmod', '-R', '755', usr_overlay)
+                if os.path.isdir('/.blend-overlays/future-usr'):
+                    exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
+                    exec('rm', '-rf', usr_overlay)
+                usr_overlay_workdir = subprocess.run(
+                    ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
+                exec('chmod', '-R', '755', usr_overlay_workdir)
+                varlibpacman_overlay = subprocess.run(
+                    ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
+                exec('chmod', '-R', '755', varlibpacman_overlay)
+                if os.path.isdir('/.blend-overlays/future-varlibpacman'):
+                    exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
+                    exec('rm', '-rf', varlibpacman_overlay)
+                varlibpacman_overlay_workdir = subprocess.run(
+                    ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
+                exec('chmod', '-R', '755', varlibpacman_overlay_workdir)
+
+                exec('mount', '-t', 'overlay', 'overlay', '-o',
+                    f'lowerdir=/var/lib/pacman,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/mnt/iso-update/squashfs-root/usr')
+
+                exec('mount', '-t', 'overlay', 'overlay', '-o',
+                    f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/mnt/iso-update/squashfs-root/var/lib/pacman')
+
                 # Install custom system packages
                 exec('touch', '/.custom_pkg_list')
                 exec('cp', '/.custom_pkg_list', '/mnt/iso-update/squashfs-root')
@@ -197,12 +222,16 @@ def update_system():
                 # Note to self: since the hook only copies new files in /etc, configuring
                 # Note to self: locales and users isn't required
 
+                # Unmount and rename overlays
+                exec('umount', '-l', '/mnt/iso-update/squashfs-root/usr')
+                exec('umount', '-l', '/mnt/iso-update/squashfs-root/var/lib/pacman')
+                exec('mv', usr_overlay, '/mnt/iso-update/future-usr')
+                exec('mv', varlibpacman_overlay, '/mnt/iso-update/future-varlibpacman')
+                exec('touch', '/mnt/iso-update/future-usr/.okay')
+                exec('touch', '/mnt/iso-update/future-varlibpacman/.okay')
+
                 # Mark as ready for update on boot
                 exec('touch', '/mnt/iso-update/.ready-for-update')
-
-                # Unmount directories if not already unmounted
-                exec('umount', '-l', '/mnt/iso-update/squashfs-root/dev')
-                exec('umount', '-l', '/mnt/iso-update/squashfs-root/proc')
 
 
 def handle_system_packages(operation):
