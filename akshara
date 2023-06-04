@@ -189,7 +189,7 @@ def update_system():
                 exec('chmod', '-R', '755', usr_overlay)
                 if os.path.isdir('/.blend-overlays/future-usr'):
                     exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
-                    exec('rm', '-rf', usr_overlay)
+                    exec('rm', '-rf', '/.blend-overlays/future-usr')
                 usr_overlay_workdir = subprocess.run(
                     ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
                 exec('chmod', '-R', '755', usr_overlay_workdir)
@@ -198,7 +198,7 @@ def update_system():
                 exec('chmod', '-R', '755', varlibpacman_overlay)
                 if os.path.isdir('/.blend-overlays/future-varlibpacman'):
                     exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
-                    exec('rm', '-rf', varlibpacman_overlay)
+                    exec('rm', '-rf', '/.blend-overlays/future-varlibpacman')
                 varlibpacman_overlay_workdir = subprocess.run(
                     ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
                 exec('chmod', '-R', '755', varlibpacman_overlay_workdir)
@@ -395,8 +395,8 @@ blendOS is not responsible for any system breakage.
 
 {colors.bold}{colors.fg.cyan}available commands{colors.reset}:
   {colors.bold}help{colors.reset}                  Show this help message and exit.
-  {colors.bold}install{colors.reset}               Install system drivers/packages.
-  {colors.bold}remove{colors.reset}                Remove system drivers/packages.
+  {colors.bold}set-custom-packages{colors.reset}   Set the custom system packages to be included in the overlay.
+  {colors.bold}drop-overlay{colors.reset}          Drop an overlay created previously using set-custom-packages.
   {colors.bold}version{colors.reset}               Show version information and exit.
 
 {colors.bold}{colors.fg.cyan}options for commands{colors.reset}:
