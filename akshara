@@ -302,9 +302,9 @@ def handle_system_packages(operation):
     exec('mount', subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'],
          stdout=subprocess.PIPE).stdout.decode().strip(), '/.blendrw')
     exec('mount', '-t', 'overlay', 'overlay', '-o',
-         f'lowerdir=/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/.blendrw/usr')
+         f'lowerdir=/.blendrw/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/.blendrw/usr')
     exec('mount', '-t', 'overlay', 'overlay', '-o',
-         f'lowerdir=/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blendrw/var/lib/pacman')
+         f'lowerdir=/.blendrw/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blendrw/var/lib/pacman')
 
     if operation == 'set-custom-packages':
         operation = ['-Sy', '--needed', '--noconfirm']
@@ -360,7 +360,7 @@ def handle_system_packages(operation):
         exec('mv', usr_overlay, '/.blend-overlays/future-usr')
         exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
         exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
-        exec('bash', '-c', "printf > /.custom_pkg_list")
+        exec('bash', '-c', "echo -n > /.custom_pkg_list")
         for pkg in args.pkg:
             exec('bash', '-c', f"echo '{pkg}' >> /.custom_pkg_list")
         exec('touch', '/.blend-overlays/future-usr/.okay')
