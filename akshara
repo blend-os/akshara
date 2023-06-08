@@ -309,10 +309,17 @@ def handle_system_packages(operation):
     if operation == 'set-custom-packages':
         operation = ['-Sy', '--needed', '--noconfirm']
     elif operation == 'drop-overlay':
-        exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
-        exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
+        exec('rm', '-rf', '/.blend-overlays/future-usr')
+        exec('rm', '-rf', '/.blend-overlays/future-varlibpacman')
+
+        exec('mkdir', '-p', '/.blend-overlays/future-usr')
+        exec('mkdir', '-p', '/.blend-overlays/future-varlibpacman')
+
         exec('rm', '-f', '/.custom_pkg_list')
         exec('touch', '/.custom_pkg_list')
+
+        exec('touch', '/.blend-overlays/future-usr/.okay')
+        exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
         exit()
 
     if exec('systemd-nspawn', '-D', '/.blendrw', '--', 'pacman', *operation, '--', *args.pkg, stdout=sys.stdout, stderr=sys.stderr) != 0:
