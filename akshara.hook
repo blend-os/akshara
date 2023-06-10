@@ -23,7 +23,7 @@ run_latehook() {
                 mv "$kversion" /new_root/usr/lib/modules/"$(basename "$kversion")"
             fi
         done
-        
+
         # Same for /var/lib/pacman.
         mv /new_root/var/lib/pacman /new_root/.old.var.lib.pacman
         mv /new_root/mnt/iso-update/squashfs-root/var/lib/pacman /new_root/var/lib
@@ -35,23 +35,19 @@ run_latehook() {
     
     # Detect if /etc stage is active.
     if [[ -f /new_root/mnt/iso-update/.etc-stage ]]; then
+        # Create new /etc.
+        cp -a /new_root/mnt/iso-update/squashfs-root/etc /new_root/.new.etc
+
+        # Replace editable /etc files.
+        for i in sudoers crypttab fstab group gshadow hosts passwd resolv.conf shadow shells subgid subuid; do
+            cp "/new_root/etc/${i}" /new_root/.new.etc
+        done
+
         # Rename existing /etc.
         mv /new_root/etc /new_root/.old.etc &>/dev/null || :
-        
-        # Create new /etc.
-        cp -a /new_root/.old.etc /new_root/etc
-        
-        # Only copy non-existent files.
-        cp -a -n /new_root/mnt/iso-update/squashfs-root/etc/* /new_root/etc
-        
-        # Update pacman config, and other system files that aren't
-        # supposed to be edited.
-        cp /new_root/mnt/iso-update/squashfs-root/etc/pacman.conf /new_root/etc
-        rm -rf /new_root/etc/pacman.d
-        cp -r /new_root/mnt/iso-update/squashfs-root/etc/pacman.d /new_root/etc
-        cp /new_root/mnt/iso-update/squashfs-root/etc/blend_release /new_root/etc
-        cp /new_root/mnt/iso-update/squashfs-root/etc/os-release /new_root/etc
-        cp /new_root/mnt/iso-update/squashfs-root/etc/lsb-release /new_root/etc
+
+        # Rename new /etc.
+        mv /new_root/.new.etc /new_root/etc &>/dev/null || :
 
         # Replace kernel and microcode images.
         mv /new_root/mnt/iso-update/iso/boot/initramfs-linux-zen.img /new_root/boot/initramfs-linux-zen.img
@@ -59,7 +55,7 @@ run_latehook() {
         if [[ -f /boot/amd-ucode.img ]]; then
             mv /new_root/mnt/iso-update/iso/boot/amd-ucode.img /new_root/boot/amd-ucode.img
         fi
-        
+
         if [[ -f /boot/intel-ucode.img ]]; then
             mv /new_root/mnt/iso-update/iso/boot/intel-ucode.img /new_root/boot/intel-ucode.img
         fi
@@ -68,7 +64,7 @@ run_latehook() {
         rm -f /new_root/mnt/iso-update/.etc-stage
         touch /new_root/mnt/iso-update/.successful-update
     fi
-    
+
     # Handle overlays.
 
     if [[ -f '/new_root/.blend-overlays/future-usr/.okay' ]] && [[ -f '/new_root/.blend-overlays/future-varlibpacman/.okay' ]]; then
@@ -84,7 +80,7 @@ run_latehook() {
         mkdir -p /new_root/.blend-overlays/$i
         mkdir -p /new_root/.blend-overlays/$i.workdir
     done
-    
+
     mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/usr,upperdir=/new_root/.blend-overlays/usr,workdir=/new_root/.blend-overlays/usr.workdir /new_root/usr
     mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/var/lib/pacman,upperdir=/new_root/.blend-overlays/varlibpacman,workdir=/new_root/.blend-overlays/varlibpacman.workdir /new_root/var/lib/pacman
 }
