@@ -42,6 +42,7 @@ run_latehook() {
         for i in sudoers crypttab fstab group gshadow hosts passwd resolv.conf shadow shells subgid subuid; do
             cp "/new_root/etc/${i}" /new_root/.new.etc
         done
+        cp "/new_root/etc/default/grub" /new_root/.new.etc
 
         # Rename existing /etc.
         mv /new_root/etc /new_root/.old.etc &>/dev/null || :
