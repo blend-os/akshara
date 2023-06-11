@@ -170,6 +170,13 @@ def update_system():
                     'bash', '-c', 'echo \'HOOKS="base udev akshara plymouth autodetect modconf block keyboard keymap consolefont filesystems fsck"\' >> /etc/mkinitcpio.conf')
                 exec_chroot(
                     'bash', '-c', 'echo \'COMPRESSION="zstd"\' >> /etc/mkinitcpio.conf')
+                
+                if 'NVIDIA' in subprocess.check_output(['lspci']).decode('utf-8'):
+                    exec_chroot(
+                        'bash', '-c', 'echo -e \'\\nGRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT} vt.global_cursor_default=0 nvidia_drm.modeset=1 splash"\' >> /etc/default/grub')
+                    exec_chroot('mkdir', '-p', '/etc/udev/rules.d')
+                    exec_chroot('ln', '-s', '/dev/null',
+                                '/etc/udev/rules.d/61-gdm.rules')
 
                 # Refresh package lists, pacman-key --init
                 exec_chroot('pacman', '-Rn', '--noconfirm',
@@ -250,12 +257,6 @@ def handle_system_packages(operation):
 
     if operation == 'set-custom-packages':
         info('this operation will replace the current overlay on the next boot')
-        info('(any custom system packages/drivers installed earlier will be removed)')
-        print()
-        info('this command should __only__ be used for the installation of drivers')
-        info('blendOS is __not__ responsible for any system breakage')
-    elif operation == 'drop-overlay':
-        info('any installed packages will be removed')
     else:
         error('unsupported operation')
     print()
@@ -368,7 +369,7 @@ def handle_system_packages(operation):
         exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
         exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
         exec('bash', '-c', "echo -n > /.custom_pkg_list")
-        for pkg in args.pkg:
+        for pkg in list(set(args.pkg)):
             exec('bash', '-c', f"echo '{pkg}' >> /.custom_pkg_list")
         exec('touch', '/.blend-overlays/future-usr/.okay')
         exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
@@ -387,7 +388,7 @@ def daemon():
             system_lock = fasteners.InterProcessLock('/var/lib/.akshara-system-lock')
             with system_lock:
                 update_system()
-        time.sleep(300)
+        time.sleep(60)
 
 
 description = f'''
@@ -451,7 +452,6 @@ try:
         exec('touch', '/var/lib/.akshara-system-lock')
         system_lock = fasteners.InterProcessLock('/var/lib/.akshara-system-lock')
         info('attempting to acquire system lock')
-        print()
         with system_lock:
             command(args.command)
     else:

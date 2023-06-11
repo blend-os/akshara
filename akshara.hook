@@ -39,7 +39,7 @@ run_latehook() {
         cp -a /new_root/mnt/iso-update/squashfs-root/etc /new_root/.new.etc
 
         # Replace editable /etc files.
-        for i in sudoers crypttab fstab group gshadow hosts passwd resolv.conf shadow shells subgid subuid; do
+        for i in sudoers crypttab fstab group gshadow hostname hosts passwd resolv.conf shadow shells subgid subuid; do
             cp "/new_root/etc/${i}" /new_root/.new.etc
         done
         cp "/new_root/etc/default/grub" /new_root/.new.etc
