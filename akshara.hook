@@ -50,9 +50,6 @@ run_latehook() {
         # Rename new /etc.
         mv /new_root/.new.etc /new_root/etc &>/dev/null || :
 
-        # Replace kernel and microcode images.
-        mv /new_root/mnt/iso-update/iso/boot/initramfs-linux-zen.img /new_root/boot/initramfs-linux-zen.img
-
         if [[ -f /boot/amd-ucode.img ]]; then
             mv /new_root/mnt/iso-update/iso/boot/amd-ucode.img /new_root/boot/amd-ucode.img
         fi
