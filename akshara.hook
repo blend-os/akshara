@@ -40,9 +40,13 @@ run_latehook() {
 
         # Replace editable /etc files.
         for i in sudoers crypttab fstab group gshadow hostname hosts passwd resolv.conf shadow shells subgid subuid; do
-            cp "/new_root/etc/${i}" /new_root/.new.etc
+            mv "/new_root/etc/${i}" "/new_root/.new.etc/${i}"
         done
-        cp "/new_root/etc/default/grub" /new_root/.new.etc
+        mv "/new_root/etc/default/grub" "/new_root/.new.etc/default/grub"
+        [[ -d /new_root/etc/NetworkManager/system-connections ]] && (
+            rm -rf /new_root/.new.etc/NetworkManager/system-connections;
+            mv /new_root/etc/NetworkManager/system-connections /new_root/.new.etc/NetworkManager/system-connections
+        )
 
         # Rename existing /etc.
         mv /new_root/etc /new_root/.old.etc &>/dev/null || :

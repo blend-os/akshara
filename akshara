@@ -109,9 +109,9 @@ def get_server_timestamp():
 
 def update_system():
     os.chdir('/mnt')
-    exec('rm', '-rf', '/mnt/iso-update/iso')
-    exec('rm', '-rf', '/mnt/iso-update/squashfs-root')
-    exec('mkdir', '-p', '/mnt/iso-update')
+    for f in os.listdir('/mnt/iso-update'):
+        if f != 'update.iso':
+            exec('rm', '-f', f)
 
     # Check if update is available
     if os.path.isfile('/etc/blend_release'):
@@ -124,22 +124,11 @@ def update_system():
                 # Update is available, let's download the latest ISO
                 exec('mkdir', '-p', '/mnt/iso-update')
                 if not os.path.isfile('/mnt/iso-update/update.iso'):
-                    exec('wget', '-O', '/mnt/iso-update/update.iso',
-                         f'{server_url}/track/{track}/download')
-                exec('rm', '-f', '/mnt/iso-update/update.iso.sha512sum')
-                exec('wget', '-O', '/mnt/iso-update/update.iso.sha512sum',
-                     f'{server_url}/track/{track}/update-sha512sum')
-                if exec('bash', '-c', 'cd /mnt/iso-update; sha512sum --check --status /mnt/iso-update/update.iso.sha512sum') != 0:
-                    exec('rm', '-f', '/mnt/iso-update/update.iso.sha512sum',
-                         '/mnt/iso-update/update.iso.sha512sum')
-                    exec('wget', '-O', '/mnt/iso-update/update.iso',
-                         f'{server_url}/track/{track}/download')
-                    exec('wget', '-O', '/mnt/iso-update/update.iso.sha512sum',
-                         f'{server_url}/track/{track}/update-sha512sum')
-                    if exec('sha512sum', '--check', '--status', 'update.iso.sha512sum', cwd='/mnt/iso-update') != 0:
-                        exec('rm', '-f', '/mnt/iso-update/.download_lock')
+                    if exec('zsync2', f'https://updates.blendos.co/{track}/{get_server_timestamp()}/update.iso.zsync', '-o', '/mnt/iso-update/update.iso') != 0:
                         return
-                exec('rm', '-f', '/mnt/iso-update/.download_lock')
+                else:
+                    if exec('zsync2', f'https://updates.blendos.co/{track}/{get_server_timestamp()}/update.iso.zsync', '-i', '/mnt/iso-update/update.iso', '-o', '/mnt/iso-update/update.iso') != 0:
+                        return
 
                 # Since the ISO has been downloaded, proceed to extracing it
                 # as well the rootfs it contains (single-core unsquashfs)
