@@ -109,9 +109,10 @@ def get_server_timestamp():
 
 def update_system():
     os.chdir('/mnt')
-    for f in os.listdir('/mnt/iso-update'):
-        if f != 'update.iso':
-            exec('rm', '-f', f)
+    if os.path.isdir('/mnt/iso-update'):
+        for f in os.listdir('/mnt/iso-update'):
+            if f != 'update.iso':
+                exec('rm', '-f', f)
 
     # Check if update is available
     if os.path.isfile('/etc/blend_release'):
