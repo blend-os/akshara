@@ -112,7 +112,7 @@ def update_system():
     if os.path.isdir('/mnt/iso-update'):
         for f in os.listdir('/mnt/iso-update'):
             if f != 'update.iso':
-                exec('rm', '-f', f)
+                exec('rm', '-f', f'/mnt/iso-update/{f}')
 
     # Check if update is available
     if os.path.isfile('/etc/blend_release'):
