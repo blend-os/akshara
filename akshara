@@ -247,8 +247,6 @@ def handle_system_packages(operation):
 
     if operation == 'set-custom-packages':
         info('this operation will replace the current overlay on the next boot')
-    else:
-        error('unsupported operation')
     print()
 
     time.sleep(2)
