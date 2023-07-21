@@ -121,6 +121,7 @@ def update_system():
                 blend_release_file, Loader=yaml.FullLoader)
             current_timestamp = blend_release['current']
             track = blend_release['track']
+            t2 = 't2' in track
             if get_server_timestamp() > current_timestamp:
                 # Update is available, let's download the latest ISO
                 exec('mkdir', '-p', '/mnt/iso-update')
@@ -149,9 +150,19 @@ def update_system():
                 exec_chroot('systemctl', 'enable', 'cups')
                 exec_chroot('systemctl', '--global', 'enable', 'blend-files')
 
+                # Enable T2 services if T2
+                if t2:
+                    exec_chroot('systemctl', 'enable', 'touchbard')
+                    exec_chroot('systemctl', 'enable', 't2fand')
+                    exec_chroot('systemctl', 'enable', 'bolt')
+
                 # Add akshara hook
-                exec_chroot(
-                    'bash', '-c', 'echo \'MODULES=""\' > /etc/mkinitcpio.conf')
+                if t2:
+                    exec_chroot(
+                        'bash', '-c', 'echo \'MODULES="apple-bce"\' > /etc/mkinitcpio.conf')
+                else:
+                    exec_chroot(
+                        'bash', '-c', 'echo \'MODULES=""\' > /etc/mkinitcpio.conf')
                 exec_chroot(
                     'bash', '-c', 'echo \'BINARIES=""\' >> /etc/mkinitcpio.conf')
                 exec_chroot(
@@ -169,10 +180,18 @@ def update_system():
                                 '/etc/udev/rules.d/61-gdm.rules')
 
                 # Refresh package lists, pacman-key --init
-                exec_chroot('pacman', '-Rn', '--noconfirm',
-                            'jade-gui', 'blend-inst-git')
+                if t2:
+                    exec_chroot('pacman', '-Rn', '--noconfirm',
+                                'jade-gui', 'blend-inst-t2')
+                else:
+                    exec_chroot('pacman', '-Rn', '--noconfirm',
+                                'jade-gui', 'blend-inst-git')
                 exec_chroot('pacman-key', '--init')
                 exec_chroot('pacman-key', '--populate', 'archlinux', 'blend')
+
+                # Delete udev Thunderbolt rule if exists
+                if t2:
+                    exec_chroot('rm', '-f', '/etc/udev/rules.d/99-thunderbolt.rules')
 
                 # Disable auto-login for blend user
                 exec_chroot(
