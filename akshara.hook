@@ -16,6 +16,9 @@ run_latehook() {
 
         # Copy package list
         mv /new_root/mnt/iso-update/squashfs-root/.custom_pkg_list /new_root
+        if [[ -f /new_root/mnt/iso-update/squashfs-root/.base_packages ]]; then
+            mv /new_root/mnt/iso-update/squashfs-root/.base_packages /new_root
+        fi
 
         # Update /usr/lib/modules for current kernel version.
         for kversion in /new_root/.old.usr/lib/modules/*; do
