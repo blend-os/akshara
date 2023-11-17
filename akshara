@@ -25,14 +25,11 @@ import shutil
 import argparse
 import platform
 import fasteners
+import threading
 import subprocess
 
 __version = '1.0.0'
 
-with open('/etc/blend_release') as blend_release_file:
-    blend_release = yaml.load(
-        blend_release_file, Loader=yaml.FullLoader)
-    server_url = blend_release['server']
 
 # Colors
 
@@ -77,429 +74,203 @@ class colors:
 
 
 def exec(*cmd, **kwargs):
-    return subprocess.call(cmd, shell=False, **kwargs)
+    return subprocess.call(cmd, shell=False, stdout=sys.stdout, stderr=sys.stderr, **kwargs)
 
 
 def exec_chroot(*cmd, **kwargs):
-    return exec('systemd-nspawn', '-D', '/mnt/iso-update/squashfs-root', '--', *cmd, **kwargs)
+    return exec('systemd-nspawn', '-D', '/.new_rootfs', '--', *cmd, **kwargs)
+
+
+fg = colors.fg()
 
 
 def info(msg):
-    print(colors.bold + colors.fg.cyan + '>> i: ' +
-          colors.reset + colors.bold + msg + colors.reset)
+    print(colors.bold + fg.cyan + '[INFO] ' +
+          colors.reset + msg + colors.reset)
+
+
+def warn(warning):
+    print(colors.bold + fg.yellow + '[WARNING] ' +
+          colors.reset + warning + colors.reset)
 
 
 def error(err):
-    print(colors.bold + colors.fg.red + '>> e: ' +
-          colors.reset + colors.bold + err + colors.reset)
-
-
-def get_server_timestamp():
-    with open('/etc/blend_release') as blend_release_file:
-        track = yaml.load(blend_release_file, Loader=yaml.FullLoader)['track']
-    server_version_output = subprocess.run(
-        ['curl', '--silent', '-L', '--show-error', f'{server_url}/track/{track}/current'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if server_version_output.stderr.decode().strip() != '':
-        return 0
-    elif server_version_output.stdout.decode().strip() != '' and server_version_output.stdout.decode().strip().isnumeric():
-        return int(server_version_output.stdout.decode().strip())
-    else:
-        return 0
+    print(colors.bold + fg.red + '[ERROR] ' +
+          colors.reset + err + colors.reset)
 
 
 def update_system():
-    os.chdir('/mnt')
-    if os.path.isdir('/mnt/iso-update'):
-        for f in os.listdir('/mnt/iso-update'):
-            if f != 'update.iso':
-                exec('rm', '-rf', f'/mnt/iso-update/{f}')
+    if os.path.isdir('/.update_rootfs'):
+        error('update already downloaded, you must reboot first')
+        sys.exit(75)
+
+    os.chdir('/')
+
+    if os.path.isdir('/.new_rootfs'):
+        exec('rm', '-rf', '/.new_rootfs')
 
     # Check if update is available
-    if os.path.isfile('/etc/blend_release'):
-        with open('/etc/blend_release') as blend_release_file:
-            blend_release = yaml.load(
-                blend_release_file, Loader=yaml.FullLoader)
-            current_timestamp = blend_release['current']
-            track = blend_release['track']
-            if get_server_timestamp() > current_timestamp:
-                # Update is available, let's download the latest ISO
-                exec('mkdir', '-p', '/mnt/iso-update')
-                if not os.path.isfile('/mnt/iso-update/update.iso'):
-                    if exec('zsync2', f'https://updates.blendos.co/{track}/{get_server_timestamp()}/update.iso.zsync', '-o', '/mnt/iso-update/update.iso') != 0:
-                        return
-                else:
-                    if exec('zsync2', f'https://updates.blendos.co/{track}/{get_server_timestamp()}/update.iso.zsync', '-i', '/mnt/iso-update/update.iso', '-o', '/mnt/iso-update/update.iso') != 0:
-                        return
+    if not os.path.isfile('/system.yaml'):
+        error('system.yaml does not exist in /')
+        sys.exit(100)
 
-                # Since the ISO has been downloaded, proceed to extracing it
-                # as well the rootfs it contains (single-core unsquashfs)
-                exec('rm', '-rf', '/mnt/iso-update/iso',
-                     '/mnt/iso-update/squashfs-root')
-                exec('7z', '-oiso', 'x', 'update.iso', cwd='/mnt/iso-update')
-                if exec('unsquashfs', '-p', '1', f'iso/blend/{platform.machine()}/airootfs.sfs', cwd='/mnt/iso-update') != 0:
-                    return
+    with open('/system.yaml') as blend_release_file:
+        blend_release = yaml.load(
+            blend_release_file, Loader=yaml.FullLoader)
 
-                ########################
-                # Configure new rootfs #
-                ########################
+        info('downloading Arch tarball...')
 
-                # Enable services
-                exec_chroot('systemctl', 'enable', 'akshara')
-                exec_chroot('systemctl', 'enable', 'bluetooth')
-                exec_chroot('systemctl', 'enable', 'cups')
-                exec_chroot('systemctl', '--global', 'enable', 'blend-files')
+        if not os.path.isfile('/.update.tar.gz'):
+            if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.gz', '-O', '/.update.tar.gz') != 0:
+                warn('failed download')
+                print()
+                info('trying download again...')
+                print()
+                exec('rm', '-f', '/.update.tar.gz')
+                if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.gz', '-O', '/.update.tar.gz') != 0:
+                    error('failed download')
+                    print()
+                    error('update failed')
+                    sys.exit(50)
 
-                # Add akshara hook
-                exec_chroot(
-                    'bash', '-c', 'echo \'MODULES=""\' > /etc/mkinitcpio.conf')
-                exec_chroot(
-                    'bash', '-c', 'echo \'BINARIES=""\' >> /etc/mkinitcpio.conf')
-                exec_chroot(
-                    'bash', '-c', 'echo \'FILES=""\' >> /etc/mkinitcpio.conf')
-                exec_chroot(
-                    'bash', '-c', 'echo \'HOOKS="base udev akshara plymouth autodetect modconf block keyboard keymap consolefont filesystems fsck"\' >> /etc/mkinitcpio.conf')
-                exec_chroot(
-                    'bash', '-c', 'echo \'COMPRESSION="zstd"\' >> /etc/mkinitcpio.conf')
-                
-                if 'NVIDIA' in subprocess.check_output(['lspci']).decode('utf-8'):
-                    exec_chroot(
-                        'bash', '-c', 'echo -e \'\\nGRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT} vt.global_cursor_default=0 nvidia_drm.modeset=1 splash"\' >> /etc/default/grub')
-                    exec_chroot('mkdir', '-p', '/etc/udev/rules.d')
-                    exec_chroot('ln', '-s', '/dev/null',
-                                '/etc/udev/rules.d/61-gdm.rules')
+        if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\.tar\.gz/.update.tar.gz/g") 2>/dev/null') != 0:
+            error('failed checksum verification')
+            print()
+            info('trying download again...')
+            exec('rm', '-f', '/.update.tar.gz')
+            if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.gz', '-O', '/.update.tar.gz') != 0:
+                error('failed download')
+                print()
+                error('update failed')
+                sys.exit(50)
+                return
+            if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\.tar\.gz/.update.tar.gz/g") 2>/dev/null') != 0:
+                error('failed checksum verification')
+                print()
+                error('update failed')
+                sys.exit(25)
+                return
 
-                # Refresh package lists, pacman-key --init
-                exec_chroot('pacman', '-Rn', '--noconfirm',
-                            'jade-gui', 'blend-inst-git')
-                exec_chroot('pacman-key', '--init')
-                exec_chroot('pacman-key', '--populate', 'archlinux', 'blend')
+        info('checksum verification was successful')
 
-                # Disable auto-login for blend user
-                exec_chroot(
-                    'bash', '-c', 'echo "[Theme]" > /etc/sddm.conf.d/default.conf')
-                exec_chroot(
-                    'bash', '-c', 'echo "Current=breeze" >> /etc/sddm.conf.d/default.conf')
-                exec_chroot('rm', '-f', '/etc/gdm/custom.conf')
+        print()
 
-                usr_overlay = subprocess.run(
-                    ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-                exec('chmod', '-R', '755', usr_overlay)
-                if os.path.isdir('/.blend-overlays/future-usr'):
-                    exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
-                    exec('rm', '-rf', '/.blend-overlays/future-usr')
-                usr_overlay_workdir = subprocess.run(
-                    ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-                exec('chmod', '-R', '755', usr_overlay_workdir)
-                varlibpacman_overlay = subprocess.run(
-                    ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-                exec('chmod', '-R', '755', varlibpacman_overlay)
-                if os.path.isdir('/.blend-overlays/future-varlibpacman'):
-                    exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
-                    exec('rm', '-rf', '/.blend-overlays/future-varlibpacman')
-                varlibpacman_overlay_workdir = subprocess.run(
-                    ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-                exec('chmod', '-R', '755', varlibpacman_overlay_workdir)
+        info('generating new system...')
 
-                exec('mount', '-t', 'overlay', 'overlay', '-o',
-                    f'lowerdir=/mnt/iso-update/squashfs-root/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/mnt/iso-update/squashfs-root/usr')
+        exec('tar', '--acls', '--xattrs', '-xf', '.update.tar.gz')
+        exec('mv', 'root.x86_64', '.new_rootfs')
+        exec('rm', '-f', '/.new_rootfs/pkglist.x86_64.txt')
+        exec('rm', '-f', '/.new_rootfs/version')
 
-                exec('mount', '-t', 'overlay', 'overlay', '-o',
-                    f'lowerdir=/mnt/iso-update/squashfs-root/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/mnt/iso-update/squashfs-root/var/lib/pacman')
+        packages = [
+            'akshara',
+            'blend'
+        ]
 
-                # Install custom system packages
-                exec('touch', '/.custom_pkg_list')
-                exec('cp', '/.custom_pkg_list', '/mnt/iso-update/squashfs-root')
-                with open('/.custom_pkg_list') as custompkglist_file:
-                    custompkglist = []
-                    while line := custompkglist_file.readline():
-                        if line.strip() != '':
-                            custompkglist.append(line.strip())
-                    exec_chroot('pacman', '-Sy', '--needed', '--noconfirm', *custompkglist)
+        services = [
+            'akshara'
+        ]
 
-                # Note to self: since the hook only copies new files in /etc, configuring
-                # Note to self: locales and users isn't required
+        user_services = [
+            'blend-files'
+        ]
 
-                # Unmount and rename overlays
-                exec('umount', '-l', '/mnt/iso-update/squashfs-root/usr')
-                exec('umount', '-l', '/mnt/iso-update/squashfs-root/var/lib/pacman')
-                exec('mv', usr_overlay, '/.blend-overlays/future-usr')
-                exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
-                exec('touch', '/.blend-overlays/future-usr/.okay')
-                exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
+        if type(blend_release.get('packages')) == list:
+            packages += blend_release.get('packages')
 
-                # Mark as ready for update on boot
-                exec('touch', '/mnt/iso-update/.ready-for-update')
+        if type(blend_release.get('services')) == list:
+            services += blend_release.get('services')
+
+        if type(blend_release.get('user-services')) == list:
+            user_services += blend_release.get('user-services')
+
+        with open('/.new_rootfs/etc/pacman.d/mirrorlist', 'w') as pacman_mirrorlist_conf:
+            pacman_mirrorlist_conf.write('Server = https://cloudflaremirrors.com/archlinux/$repo/os/$arch\n')
+
+        #exec_chroot('sed', 's/#//g', '-i', '/etc/pacman.d/mirrorlist')
+        #exec_chroot('bash', '-c', 'grep "^Server =" /etc/pacman.d/mirrorlist > /etc/pacman.d/mirrorlist.tmp; mv /etc/pacman.d/mirrorlist.tmp /etc/pacman.d/mirrorlist')
+
+        with open('/.new_rootfs/etc/pacman.conf', 'r') as original: data = original.read()
+        with open('/.new_rootfs/etc/pacman.conf', 'w') as modified: modified.write(data.replace("[options]", "[options]\nParallelDownloads = 32\n"))
+
+        with open('/.new_rootfs/etc/pacman.conf', 'a') as pacman_conf:
+            pacman_conf.write(f'''
+[breakfast]
+SigLevel = Never
+Server = {blend_release['repo']}
+''')
+
+            if type(blend_release.get('package-repos')) == list:
+                for package_repo in blend_release.get('package-repos'):
+                    if (type(package_repo.get('name')) == str and
+                        type(package_repo.get('repo-url')) == str):
+                        pacman_conf.write(f'''
+[{package_repo["name"]}]
+SigLevel = Never
+Server = {package_repo["repo-url"]}
+''')
 
 
-def apex_update():
-    try:
-        apex_iso = sys.argv[2]
-    except IndexError:
-        error('you must pass a valid ISO as an argument')
-        exit(1)
+        exec_chroot('mkdir', '-p', '/var/cache/pacman/pkg')
+        exec_chroot('rm', '-rf', '/var/cache/pacman/pkg')
+        exec('cp', '-r', '/var/cache/pacman/pkg', '/.new_rootfs/var/cache/pacman')
 
-    exec('mkdir', '-p', '/mnt/iso-update')
+        # update packages
+        exec_chroot('pacman-key', '--init')
+        exec_chroot('pacman-key', '--populate')
 
-    if os.path.isfile(apex_iso):
-        exec('cp', apex_iso, f'/mnt/iso-update/update.iso')
-    else:
-        error('you must pass a valid ISO as an argument')
-        exit(1)
+        if exec_chroot('pacman', '-Syu', '--noconfirm') != 0:
+            if exec_chroot('pacman', '-Syu', '--noconfirm') != 0:
+                if exec_chroot('pacman', '-Syu', '--noconfirm') != 0:
+                    if exec_chroot('pacman', '-Syu', '--noconfirm') != 0:
+                        error('update failed due to unsuccessful package downloads')
+                        sys.exit(50)
 
-    if os.path.isdir('/mnt/iso-update'):
-        for f in os.listdir('/mnt/iso-update'):
-            if f != 'update.iso':
-                exec('rm', '-rf', f'/mnt/iso-update/{f}')
+        if exec_chroot('pacman', '-S', '--ask=4', *packages) != 0:
+            if exec_chroot('pacman', '-S', '--ask=4', *packages) != 0:
+                if exec_chroot('pacman', '-S', '--ask=4', *packages) != 0:
+                    if exec_chroot('pacman', '-S', '--ask=4', *packages) != 0:
+                        error('update failed due to unsuccessful package downloads')
+                        sys.exit(50)
 
-    # Since the ISO is present, proceed to extracing it
-    # as well the rootfs it contains (single-core unsquashfs)
-    exec('rm', '-rf', '/mnt/iso-update/iso',
-            '/mnt/iso-update/squashfs-root')
-    exec('7z', '-oiso', 'x', 'update.iso', cwd='/mnt/iso-update')
-    if exec('unsquashfs', '-p', '1', f'iso/blend/{platform.machine()}/airootfs.sfs', cwd='/mnt/iso-update') != 0:
-        return
+        kernel_exists = False
 
-    ########################
-    # Configure new rootfs #
-    ########################
+        for f in os.listdir('/.new_rootfs/boot'):
+            if f.startswith('vmlinuz'):
+                kernel_exists = True
+                break
 
-    # Enable services
-    exec_chroot('systemctl', 'enable', 'akshara')
-    exec_chroot('systemctl', 'enable', 'bluetooth')
-    exec_chroot('systemctl', 'enable', 'cups')
-    exec_chroot('systemctl', '--global', 'enable', 'blend-files')
+        if not kernel_exists:
+            error('no Linux kernel found in new system')
+            error('cancelling update so as not to render the system unbootable')
+            sys.exit(10)
 
-    # Add akshara hook
-    exec_chroot(
-        'bash', '-c', 'echo \'MODULES=""\' > /etc/mkinitcpio.conf')
-    exec_chroot(
-        'bash', '-c', 'echo \'BINARIES=""\' >> /etc/mkinitcpio.conf')
-    exec_chroot(
-        'bash', '-c', 'echo \'FILES=""\' >> /etc/mkinitcpio.conf')
-    exec_chroot(
-        'bash', '-c', 'echo \'HOOKS="base udev akshara plymouth autodetect modconf block keyboard keymap consolefont filesystems fsck"\' >> /etc/mkinitcpio.conf')
-    exec_chroot(
-        'bash', '-c', 'echo \'COMPRESSION="zstd"\' >> /etc/mkinitcpio.conf')
-    
-    if 'NVIDIA' in subprocess.check_output(['lspci']).decode('utf-8'):
-        exec_chroot(
-            'bash', '-c', 'echo -e \'\\nGRUB_CMDLINE_LINUX_DEFAULT="${GRUB_CMDLINE_LINUX_DEFAULT} vt.global_cursor_default=0 nvidia_drm.modeset=1 splash"\' >> /etc/default/grub')
-        exec_chroot('mkdir', '-p', '/etc/udev/rules.d')
-        exec_chroot('ln', '-s', '/dev/null',
-                    '/etc/udev/rules.d/61-gdm.rules')
+        exec('mv', '.new_rootfs', '.update_rootfs')
 
-    # Refresh package lists, pacman-key --init
-    exec_chroot('pacman', '-Rn', '--noconfirm',
-                'jade-gui', 'blend-inst-git')
-    exec_chroot('pacman-key', '--init')
-    exec_chroot('pacman-key', '--populate', 'archlinux', 'blend')
+        new_boot_files = []
 
-    # Disable auto-login for blend user
-    exec_chroot(
-        'bash', '-c', 'echo "[Theme]" > /etc/sddm.conf.d/default.conf')
-    exec_chroot(
-        'bash', '-c', 'echo "Current=breeze" >> /etc/sddm.conf.d/default.conf')
-    exec_chroot('rm', '-f', '/etc/gdm/custom.conf')
+        # for f in os.listdir('/.update_rootfs/boot'):
+        #     if not os.path.isdir(f'/.update_rootfs/boot/{f}'):
+        #         exec('mv', f'/.update_rootfs/boot/{f}', '/boot')
+        #         new_boot_files.append(f)
 
-    usr_overlay = subprocess.run(
-        ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-    exec('chmod', '-R', '755', usr_overlay)
-    if os.path.isdir('/.blend-overlays/future-usr'):
-        exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
-        exec('rm', '-rf', '/.blend-overlays/future-usr')
-    usr_overlay_workdir = subprocess.run(
-        ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-    exec('chmod', '-R', '755', usr_overlay_workdir)
-    varlibpacman_overlay = subprocess.run(
-        ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-    exec('chmod', '-R', '755', varlibpacman_overlay)
-    if os.path.isdir('/.blend-overlays/future-varlibpacman'):
-        exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
-        exec('rm', '-rf', '/.blend-overlays/future-varlibpacman')
-    varlibpacman_overlay_workdir = subprocess.run(
-        ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-    exec('chmod', '-R', '755', varlibpacman_overlay_workdir)
+        # for f in os.listdir('/boot'):
+        #     if not os.path.isdir(f'/boot/{f}'):
+        #         if f not in new_boot_files:
+        #             exec('rm', '-f', f'/boot/{f}')
 
-    exec('mount', '-t', 'overlay', 'overlay', '-o',
-        f'lowerdir=/mnt/iso-update/squashfs-root/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/mnt/iso-update/squashfs-root/usr')
+        # exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
 
-    exec('mount', '-t', 'overlay', 'overlay', '-o',
-        f'lowerdir=/mnt/iso-update/squashfs-root/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/mnt/iso-update/squashfs-root/var/lib/pacman')
-
-    # Install custom system packages
-    exec('touch', '/.custom_pkg_list')
-    exec('cp', '/.custom_pkg_list', '/mnt/iso-update/squashfs-root')
-    with open('/.custom_pkg_list') as custompkglist_file:
-        custompkglist = []
-        while line := custompkglist_file.readline():
-            if line.strip() != '':
-                custompkglist.append(line.strip())
-        exec_chroot('pacman', '-Sy', '--needed', '--noconfirm', *custompkglist)
-
-    # Note to self: since the hook only copies new files in /etc, configuring
-    # Note to self: locales and users isn't required
-
-    # Unmount and rename overlays
-    exec('umount', '-l', '/mnt/iso-update/squashfs-root/usr')
-    exec('umount', '-l', '/mnt/iso-update/squashfs-root/var/lib/pacman')
-    exec('mv', usr_overlay, '/.blend-overlays/future-usr')
-    exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
-    exec('touch', '/.blend-overlays/future-usr/.okay')
-    exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
-
-    # Mark as ready for update on boot
-    exec('touch', '/mnt/iso-update/.ready-for-update')
-
-    print()
-    info('Update complete, reboot to apply.')
-
-
-def handle_system_packages(operation):
-    if len(args.pkg) == 0 and operation != 'drop-overlay':
-        error('no packages specified')
-        exit(1)
-
-    for pkg in args.pkg:
-        if pkg.startswith('linux'):
-            error('you may not install linux* packages')
-            exit(1)
-
-    if os.path.isfile('/mnt/iso-update/.ready-for-update'):
-        error('an update was downloaded in the background, you')
-        error('must reboot before installing any system packages')
-
-    if operation == 'set-custom-packages':
-        info('this operation will replace the current overlay on the next boot')
-    print()
-
-    time.sleep(2)
-
-    exec('mkdir', '-p', '/.blendrw')
-    while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
-        pass
-    while exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
-        pass
-    while exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) == 0:
-        pass
-    for old_overlay in os.listdir('/mnt'):
-        if old_overlay.startswith('.blend-tmp-overlay-'):
-            exec('rm', '-rf', f'/mnt/{old_overlay}')
-    usr_overlay = subprocess.run(
-        ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-    exec('chmod', '-R', '755', usr_overlay)
-    if os.path.isdir('/.blend-overlays/future-usr'):
-        exec('rm', '-f', '/.blend-overlays/future-usr/.okay')
-        exec('rm', '-rf', usr_overlay)
-        exec('mv', '/.blend-overlays/future-usr', usr_overlay)
-    usr_overlay_workdir = subprocess.run(
-        ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-    exec('chmod', '-R', '755', usr_overlay_workdir)
-    varlibpacman_overlay = subprocess.run(
-        ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-    exec('chmod', '-R', '755', varlibpacman_overlay)
-    if os.path.isdir('/.blend-overlays/future-varlibpacman'):
-        exec('rm', '-f', '/.blend-overlays/future-varlibpacman/.okay')
-        exec('rm', '-rf', varlibpacman_overlay)
-        exec('mv', '/.blend-overlays/future-varlibpacman', varlibpacman_overlay)
-    varlibpacman_overlay_workdir = subprocess.run(
-        ['mktemp', '-d', '/mnt/.blend-tmp-overlay-XXXXXXXXXXXXX'], stdout=subprocess.PIPE).stdout.decode().strip()
-    exec('chmod', '-R', '755', varlibpacman_overlay_workdir)
-    if '' in (usr_overlay, usr_overlay_workdir, varlibpacman_overlay, varlibpacman_overlay_workdir):
-        for old_overlay in os.listdir('/mnt'):
-            if old_overlay.startswith('.blend-tmp-overlay-'):
-                exec('rm', '-rf', f'/mnt/{old_overlay}')
-        error('error during overlay creation')
-        exit(1)
-    exec('mkdir', '-p', '/.blendrw')
-    exec('mount', subprocess.run(['findmnt', '-n', '-o', 'SOURCE', '/'],
-         stdout=subprocess.PIPE).stdout.decode().strip(), '/.blendrw')
-    exec('mount', '-t', 'overlay', 'overlay', '-o',
-         f'lowerdir=/.blendrw/usr,upperdir={usr_overlay},workdir={usr_overlay_workdir}', '/.blendrw/usr')
-    exec('mount', '-t', 'overlay', 'overlay', '-o',
-         f'lowerdir=/.blendrw/var/lib/pacman,upperdir={varlibpacman_overlay},workdir={varlibpacman_overlay_workdir}', '/.blendrw/var/lib/pacman')
-
-    if operation == 'set-custom-packages':
-        operation = ['-Sy', '--needed', '--noconfirm']
-    elif operation == 'drop-overlay':
-        exec('rm', '-rf', '/.blend-overlays/future-usr')
-        exec('rm', '-rf', '/.blend-overlays/future-varlibpacman')
-
-        exec('mkdir', '-p', '/.blend-overlays/future-usr')
-        exec('mkdir', '-p', '/.blend-overlays/future-varlibpacman')
-
-        exec('rm', '-f', '/.custom_pkg_list')
-        exec('touch', '/.custom_pkg_list')
-
-        exec('touch', '/.blend-overlays/future-usr/.okay')
-        exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
-        exit()
-
-    if exec('systemd-nspawn', '-D', '/.blendrw', '--', 'pacman', *operation, '--', *args.pkg, stdout=sys.stdout, stderr=sys.stderr) != 0:
-        error('error occurred during installation, abandoning changes')
-        while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
-            pass
-        while exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
-            pass
-        while exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
-            pass
-        for old_overlay in os.listdir('/mnt'):
-            if old_overlay.startswith('.blend-tmp-overlay-'):
-                exec('rm', '-rf', f'/mnt/{old_overlay}')
-    elif args.headless:
-        while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
-            pass
-        while exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
-            pass
-        while exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
-            pass
-        exec('mv', usr_overlay, '/.blend-overlays/future-usr')
-        exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
-        exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
-        exec('bash', '-c', "echo -n > /.custom_pkg_list")
-        for pkg in args.pkg:
-            exec('bash', '-c', f"echo '{pkg}' >> /.custom_pkg_list")
-        exec('touch', '/.blend-overlays/future-usr/.okay')
-        exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
-        info('reboot to apply changes')
-    else:
-        info("you are requested to review the operation's output")
-        info("press ENTER to proceed with making overlay permanent, or ^C to abort")
-        info("(aborting will also remove any packages installed previously without rebooting)")
-        try:
-            input()
-        except EOFError:
-            exit()
-
-        while exec('umount', '-l', '/.blendrw/usr', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
-            pass
-        while exec('umount', '-l', '/.blendrw/var/lib/pacman', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
-            pass
-        while exec('umount', '-l', '/.blendrw', stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) != 0:
-            pass
-        exec('mv', usr_overlay, '/.blend-overlays/future-usr')
-        exec('mv', varlibpacman_overlay, '/.blend-overlays/future-varlibpacman')
-        exec('rm', '-rf', usr_overlay_workdir, varlibpacman_overlay_workdir)
-        exec('bash', '-c', "echo -n > /.custom_pkg_list")
-        for pkg in list(set(args.pkg)):
-            exec('bash', '-c', f"echo '{pkg}' >> /.custom_pkg_list")
-        exec('touch', '/.blend-overlays/future-usr/.okay')
-        exec('touch', '/.blend-overlays/future-varlibpacman/.okay')
-        info('reboot to apply changes')
+        info('downloaded update and generated new rootfs')
+        info('you may reboot now')
 
 
 def daemon():
-    exec('mkinitcpio', '-P')
-    exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
     for dir in os.listdir('/'):
         if dir.startswith('.old.'):
             shutil.rmtree('/' + dir)
-    while True:
-        if (not os.path.isfile('/mnt/iso-update/.ready-for-update')) and (not server_url == 'apex'):
-            exec('touch', '/var/lib/.akshara-system-lock')
-            system_lock = fasteners.InterProcessLock('/var/lib/.akshara-system-lock')
-            with system_lock:
-                update_system()
-        time.sleep(60)
+
+    Event().wait()
 
 
 description = f'''
@@ -508,14 +279,9 @@ description = f'''
 
 {colors.bold}{colors.fg.cyan}version:{colors.reset} {__version}{colors.bold}
 
-This CLI is only meant for developers familiar with blendOS and the akshara codebase.
-
-blendOS is not responsible for any system breakage.
-
 {colors.bold}{colors.fg.cyan}available commands{colors.reset}:
   {colors.bold}help{colors.reset}                  Show this help message and exit.
-  {colors.bold}set-custom-packages{colors.reset}   Set the custom system packages to be included in the overlay.
-  {colors.bold}drop-overlay{colors.reset}          Drop an overlay created previously using set-custom-packages.
+  {colors.bold}update{colors.reset}                Update your blendOS system.
   {colors.bold}version{colors.reset}               Show version information and exit.
 
 {colors.bold}{colors.fg.cyan}options for commands{colors.reset}:
@@ -530,9 +296,7 @@ parser = argparse.ArgumentParser(description=description, usage=argparse.SUPPRES
                                  epilog=epilog, formatter_class=argparse.RawTextHelpFormatter)
 command_map = {'help': 'help',
                'version': 'version',
-               'apex-update': apex_update,
-               'set-custom-packages': handle_system_packages,
-               'drop-overlay': handle_system_packages,
+               'update': update_system,
                'daemon': daemon}
 parser.add_argument('command', choices=command_map.keys(),
                     help=argparse.SUPPRESS)
@@ -560,12 +324,12 @@ try:
         parser.print_help()
     elif command == 'version':
         parser.parse_args(['--version'])
-    elif command == handle_system_packages:
+    elif command == update_system:
         exec('touch', '/var/lib/.akshara-system-lock')
         system_lock = fasteners.InterProcessLock('/var/lib/.akshara-system-lock')
         info('attempting to acquire system lock')
         with system_lock:
-            command(args.command)
+            command()
     else:
         command()
 except KeyboardInterrupt:

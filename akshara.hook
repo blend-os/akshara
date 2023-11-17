@@ -3,89 +3,41 @@
 run_latehook() {
     echo
 
-    touch /new_root/.custom_pkg_list
-
-    # Remove /new_root/mnt/iso-update/.successful-update if exists
-    rm -f /new_root/mnt/iso-update/.successful-update
+    # Remove /new_root/.successful-update if exists
+    rm -f /new_root/.successful-update
 
     # Detect if update downloaded.
-    if [[ -f /new_root/mnt/iso-update/.ready-for-update ]]; then
+    if [[ -d /new_root/.update_rootfs ]]; then
         # Available, rename old /usr and move new /usr to /.
         mv /new_root/usr /new_root/.old.usr
-        mv /new_root/mnt/iso-update/squashfs-root/usr /new_root/usr
+        mv /new_root/.update_rootfs/usr /new_root/usr
 
-        # Copy package list
-        mv /new_root/mnt/iso-update/squashfs-root/.custom_pkg_list /new_root
-        if [[ -f /new_root/mnt/iso-update/squashfs-root/.base_packages ]]; then
-            mv /new_root/mnt/iso-update/squashfs-root/.base_packages /new_root
-        fi
-
-        # Update /usr/lib/modules for current kernel version.
-        for kversion in /new_root/.old.usr/lib/modules/*; do
-            if [[ ! -d /new_root/usr/lib/modules/"$(basename "$kversion")" ]]; then
-                mv "$kversion" /new_root/usr/lib/modules/"$(basename "$kversion")"
-            fi
-        done
+        # Same for /var/cache/pacman.
+        mv /new_root/var/cache/pacman /new_root/.old.pacmancache
+        mv /new_root/.update_rootfs/var/cache/pacman /new_root/var/cache
 
         # Same for /var/lib/pacman.
         mv /new_root/var/lib/pacman /new_root/.old.var.lib.pacman
-        mv /new_root/mnt/iso-update/squashfs-root/var/lib/pacman /new_root/var/lib
+        mv /new_root/.update_rootfs/var/lib/pacman /new_root/var/lib
 
         # Move to /etc stage.
-        rm -f /new_root/mnt/iso-update/.ready-for-update
-        touch /new_root/mnt/iso-update/.etc-stage
+        touch /new_root/.etc-stage
     fi
     
     # Detect if /etc stage is active.
-    if [[ -f /new_root/mnt/iso-update/.etc-stage ]]; then
+    if [[ -f /new_root/.etc-stage ]]; then
         # Create new /etc.
-        cp -a /new_root/mnt/iso-update/squashfs-root/etc /new_root/.new.etc
-
-        # Replace editable /etc files.
-        for i in sudoers crypttab fstab group gshadow hostname hosts passwd resolv.conf shadow shells subgid subuid; do
-            mv "/new_root/etc/${i}" "/new_root/.new.etc/${i}"
-        done
-        mv "/new_root/etc/default/grub" "/new_root/.new.etc/default/grub"
-        [[ -d /new_root/etc/NetworkManager/system-connections ]] && (
-            rm -rf /new_root/.new.etc/NetworkManager/system-connections;
-            mv /new_root/etc/NetworkManager/system-connections /new_root/.new.etc/NetworkManager/system-connections
-        )
-
-        # Rename existing /etc.
-        mv /new_root/etc /new_root/.old.etc &>/dev/null || :
-
-        # Rename new /etc.
-        mv /new_root/.new.etc /new_root/etc &>/dev/null || :
-
-        if [[ -f /boot/amd-ucode.img ]]; then
-            mv /new_root/mnt/iso-update/iso/boot/amd-ucode.img /new_root/boot/amd-ucode.img
-        fi
-
-        if [[ -f /boot/intel-ucode.img ]]; then
-            mv /new_root/mnt/iso-update/iso/boot/intel-ucode.img /new_root/boot/intel-ucode.img
-        fi
+        rm -rf /new_root/.new_etc
+        cp -a /new_root/etc /new_root/.new_etc
+        cp /new_root/.update_rootfs/etc/pacman.conf /new_root/.new_etc/pacman.conf
+        rm -rf /new_root/.new_etc/pacman.d
+        cp -a /new_root/.update_rootfs/etc/pacman.d /new_root/.new_etc/pacman.d
+        cp -an /new_root/.update_rootfs/etc/* /new_root/.new_etc
+        mv /new_root/etc /new_root/.old.etc || :
+        mv /new_root/.new_etc /new_root/etc
 
         # Successful update.
-        rm -f /new_root/mnt/iso-update/.etc-stage
-        touch /new_root/mnt/iso-update/.successful-update
+        rm -f /new_root/.etc-stage
+        touch /new_root/.successful-update
     fi
-
-    # Handle overlays.
-
-    if [[ -f '/new_root/.blend-overlays/future-usr/.okay' ]] && [[ -f '/new_root/.blend-overlays/future-varlibpacman/.okay' ]]; then
-        for i in usr varlibpacman; do
-            rm -rf /new_root/.blend-overlays/$i
-            mv /new_root/.blend-overlays/future-$i /new_root/.blend-overlays/$i
-        done
-    else
-        rm -rf /new_root/.blend-overlays/usr.workdir /new_root/.blend-overlays/varlibpacman.workdir
-    fi
-
-    for i in usr varlibpacman; do
-        mkdir -p /new_root/.blend-overlays/$i
-        mkdir -p /new_root/.blend-overlays/$i.workdir
-    done
-
-    mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/usr,upperdir=/new_root/.blend-overlays/usr,workdir=/new_root/.blend-overlays/usr.workdir /new_root/usr
-    mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/var/lib/pacman,upperdir=/new_root/.blend-overlays/varlibpacman,workdir=/new_root/.blend-overlays/varlibpacman.workdir /new_root/var/lib/pacman
 }
