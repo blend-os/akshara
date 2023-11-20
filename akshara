@@ -23,9 +23,10 @@ import time
 import yaml
 import shutil
 import argparse
+import requests
 import platform
 import fasteners
-import threading
+from threading import Event
 import subprocess
 
 __version = '1.0.0'
@@ -99,6 +100,21 @@ def error(err):
           colors.reset + err + colors.reset)
 
 
+def interpret_track(blend_release):
+    result = yaml.safe_load(requests.get(blend_release.get('impl') + '/' + blend_release.get('track') + '.yaml', allow_redirects=True).content.decode())
+
+    if (type(result.get('impl')) == str and
+        type(result.get('track')) != 'custom'):
+        res = interpret_track(result)
+
+        for i in res.keys():
+            if type(res[i]) is list:
+                if type(result.get(i)) is list:
+                    result[i] = res[i] + result[i]
+
+    return result
+
+
 def update_system():
     if os.path.isdir('/.update_rootfs'):
         error('update already downloaded, you must reboot first')
@@ -163,17 +179,21 @@ def update_system():
         exec('rm', '-f', '/.new_rootfs/version')
 
         packages = [
-            'akshara',
-            'blend'
+            'akshara'
         ]
 
         services = [
             'akshara'
         ]
 
-        user_services = [
-            'blend-files'
-        ]
+        if (type(blend_release.get('impl')) == str and
+            type(blend_release.get('track')) != 'custom'):
+            res = interpret_track(blend_release)
+
+            for i in res.keys():
+                if type(res[i]) is list:
+                    if type(blend_release.get(i)) is list:
+                        blend_release[i] += res[i]
 
         if type(blend_release.get('packages')) == list:
             packages += blend_release.get('packages')
@@ -183,6 +203,10 @@ def update_system():
 
         if type(blend_release.get('user-services')) == list:
             user_services += blend_release.get('user-services')
+
+        print(blend_release)
+
+        exit(5)
 
         with open('/.new_rootfs/etc/pacman.d/mirrorlist', 'w') as pacman_mirrorlist_conf:
             pacman_mirrorlist_conf.write('Server = https://cloudflaremirrors.com/archlinux/$repo/os/$arch\n')
@@ -233,6 +257,13 @@ Server = {package_repo["repo-url"]}
                         error('update failed due to unsuccessful package downloads')
                         sys.exit(50)
 
+        if type(blend_release.get('commands')) == list:
+            for command in blend_release.get('commands'):
+                if type(command) == str:
+                    exec_chroot('bash', '-c', command)
+                elif type(command) == list:
+                    exec_chroot(*command)
+
         kernel_exists = False
 
         for f in os.listdir('/.new_rootfs/boot'):
@@ -268,9 +299,9 @@ Server = {package_repo["repo-url"]}
 def daemon():
     for dir in os.listdir('/'):
         if dir.startswith('.old.'):
-            shutil.rmtree('/' + dir)
+            exec('rm', '-rf', '/' + dir)
 
-    Event().wait()
+    Event.wait()
 
 
 description = f'''

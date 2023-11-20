@@ -29,6 +29,7 @@ run_latehook() {
         # Create new /etc.
         rm -rf /new_root/.new_etc
         cp -a /new_root/etc /new_root/.new_etc
+        (cd /new_root/etc && find . -type f -print0 | grep -Fxvz -f <(cd "/new_root/.update_rootfs/etc" && find . -type f) | xargs -0 rm -rf)
         cp /new_root/.update_rootfs/etc/pacman.conf /new_root/.new_etc/pacman.conf
         rm -rf /new_root/.new_etc/pacman.d
         cp -a /new_root/.update_rootfs/etc/pacman.d /new_root/.new_etc/pacman.d
@@ -38,6 +39,8 @@ run_latehook() {
 
         # Successful update.
         rm -f /new_root/.etc-stage
+
+        mv /new_root/.update_rootfs /new_root/.old.update_rootfs
         touch /new_root/.successful-update
     fi
 }

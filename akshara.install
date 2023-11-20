@@ -4,6 +4,9 @@
 build() {
     add_module overlay
     add_binary bash
+    add_binary xargs
+    add_binary find
+    add_binary grep
     add_binary findmnt
     add_binary uname
     add_runscript
