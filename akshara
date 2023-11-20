@@ -311,7 +311,7 @@ Server = {package_repo["repo-url"]}
         exec_chroot('bash', '-c', 'echo "MODULES=()" > /etc/mkinitcpio.conf')
         exec_chroot('bash', '-c', 'echo "BINARIES=()" >> /etc/mkinitcpio.conf')
         exec_chroot('bash', '-c', 'echo "FILES=()" >> /etc/mkinitcpio.conf')
-        exec_chroot('bash', '-c', 'echo "HOOKS=(base udev akshara autodetect keyboard keymap modconf block encrypt filesystems fsck)" >> /etc/mkinitcpio.conf')
+        exec_chroot('bash', '-c', 'echo "HOOKS=(base udev akshara autodetect keyboard keymap modconf block filesystems fsck)" >> /etc/mkinitcpio.conf')
 
         exec_chroot('mkinitcpio', '-P')
 
