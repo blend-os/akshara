@@ -258,6 +258,8 @@ Server = {package_repo["repo-url"]}
             if return_val == 0:
                 break
 
+        exec('cp', '/etc/mkinitcpio.conf', '/.new_rootfs/etc/mkinitcpio.conf')
+
         counter = 0
         while True:
             return_val = exec_chroot('pacman', '-S', '--ask=4', *packages)
