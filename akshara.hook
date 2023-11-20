@@ -37,6 +37,9 @@ run_latehook() {
         mv /new_root/etc /new_root/.old.etc || :
         mv /new_root/.new_etc /new_root/etc
 
+        mv /new_root/etc/systemd/system /new_root/.old.etc.systemd.system
+        mv /new_root/.update_rootfs/etc/systemd/system /new_root/etc/systemd
+
         # Successful update.
         rm -f /new_root/.etc-stage
 
