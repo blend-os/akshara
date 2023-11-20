@@ -179,11 +179,16 @@ def update_system():
         exec('rm', '-f', '/.new_rootfs/version')
 
         packages = [
-            'akshara'
+            'akshara',
+            'blend'
         ]
 
         services = [
             'akshara'
+        ]
+
+        user_services = [
+            'blend-files'
         ]
 
         if (type(blend_release.get('impl')) == str and
@@ -261,6 +266,14 @@ Server = {package_repo["repo-url"]}
             if return_val == 0:
                 break
 
+        for service in services:
+            if type(service) is str:
+                exec_chroot('systemctl', 'enable', service)
+
+        for user_service in user_services:
+            if type(user_service) is str:
+                exec_chroot('systemctl', 'enable', '--global', user_service)
+
         if type(blend_release.get('commands')) == list:
             for command in blend_release.get('commands'):
                 if type(command) == str:
@@ -284,17 +297,17 @@ Server = {package_repo["repo-url"]}
 
         new_boot_files = []
 
-        # for f in os.listdir('/.update_rootfs/boot'):
-        #     if not os.path.isdir(f'/.update_rootfs/boot/{f}'):
-        #         exec('mv', f'/.update_rootfs/boot/{f}', '/boot')
-        #         new_boot_files.append(f)
+        for f in os.listdir('/.update_rootfs/boot'):
+            if not os.path.isdir(f'/.update_rootfs/boot/{f}'):
+                exec('mv', f'/.update_rootfs/boot/{f}', '/boot')
+                new_boot_files.append(f)
 
-        # for f in os.listdir('/boot'):
-        #     if not os.path.isdir(f'/boot/{f}'):
-        #         if f not in new_boot_files:
-        #             exec('rm', '-f', f'/boot/{f}')
+        for f in os.listdir('/boot'):
+            if not os.path.isdir(f'/boot/{f}'):
+                if f not in new_boot_files:
+                    exec('rm', '-f', f'/boot/{f}')
 
-        # exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
+        exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
 
         info('downloaded update and generated new rootfs')
         info('you may reboot now')
