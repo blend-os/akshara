@@ -199,6 +199,8 @@ def update_system():
                 if type(res[i]) is list:
                     if type(blend_release.get(i)) is list:
                         blend_release[i] += res[i]
+                    else:
+                        blend_release[i] = res[i]
 
         if type(blend_release.get('packages')) == list:
             packages += blend_release.get('packages')
