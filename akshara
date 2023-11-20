@@ -213,8 +213,32 @@ def update_system():
 
         print(blend_release)
 
+        exec_chroot('cp', '/.new_rootfs/etc/pacman.d/mirrorlist', '/.new_rootfs/etc/pacman.d/mirrorlist.bkp')
+
         with open('/.new_rootfs/etc/pacman.d/mirrorlist', 'w') as pacman_mirrorlist_conf:
             pacman_mirrorlist_conf.write('Server = https://cloudflaremirrors.com/archlinux/$repo/os/$arch\n')
+
+        exec_chroot('mkdir', '-p', '/var/cache/pacman/pkg')
+        exec_chroot('rm', '-rf', '/var/cache/pacman/pkg')
+        exec('cp', '-r', '/var/cache/pacman/pkg', '/.new_rootfs/var/cache/pacman')
+
+        # update packages
+        exec_chroot('pacman-key', '--init')
+        exec_chroot('pacman-key', '--populate')
+
+        counter = 0
+        while True:
+            return_val = exec_chroot('pacman', '-Sy', '--ask=4', 'reflector')
+            counter += 1
+            if counter > 30:
+                error('failed to download packages')
+                exit(50)
+            if return_val == 0:
+                break
+
+        exec_chroot('mv', '/.new_rootfs/etc/pacman.d/mirrorlist.bkp', '/.new_rootfs/etc/pacman.d/mirrorlist')
+
+        exec_chroot('reflector', '--latest', '20', '--protocol', 'https', '--sort', 'rate', '--save', '/etc/pacman.d/mirrorlist')
 
         #exec_chroot('sed', 's/#//g', '-i', '/etc/pacman.d/mirrorlist')
         #exec_chroot('bash', '-c', 'grep "^Server =" /etc/pacman.d/mirrorlist > /etc/pacman.d/mirrorlist.tmp; mv /etc/pacman.d/mirrorlist.tmp /etc/pacman.d/mirrorlist')
@@ -238,15 +262,6 @@ Server = {blend_release['repo']}
 SigLevel = Never
 Server = {package_repo["repo-url"]}
 ''')
-
-
-        exec_chroot('mkdir', '-p', '/var/cache/pacman/pkg')
-        exec_chroot('rm', '-rf', '/var/cache/pacman/pkg')
-        exec('cp', '-r', '/var/cache/pacman/pkg', '/.new_rootfs/var/cache/pacman')
-
-        # update packages
-        exec_chroot('pacman-key', '--init')
-        exec_chroot('pacman-key', '--populate')
 
         counter = 0
         while True:
