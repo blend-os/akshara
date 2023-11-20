@@ -206,8 +206,6 @@ def update_system():
 
         print(blend_release)
 
-        exit(5)
-
         with open('/.new_rootfs/etc/pacman.d/mirrorlist', 'w') as pacman_mirrorlist_conf:
             pacman_mirrorlist_conf.write('Server = https://cloudflaremirrors.com/archlinux/$repo/os/$arch\n')
 
