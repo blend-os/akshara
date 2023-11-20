@@ -308,6 +308,13 @@ Server = {package_repo["repo-url"]}
             error('cancelling update so as not to render the system unbootable')
             sys.exit(10)
 
+        exec_chroot('bash', '-c', 'echo "MODULES=()" > /etc/mkinitcpio.conf')
+        exec_chroot('bash', '-c', 'echo "BINARIES=()" >> /etc/mkinitcpio.conf')
+        exec_chroot('bash', '-c', 'echo "FILES=()" >> /etc/mkinitcpio.conf')
+        exec_chroot('bash', '-c', 'echo "HOOKS=(base udev akshara autodetect keyboard keymap modconf block encrypt filesystems fsck)" >> /etc/mkinitcpio.conf')
+
+        exec_chroot('mkinitcpio', '-P')
+
         exec('mv', '.new_rootfs', '.update_rootfs')
 
         new_boot_files = []
