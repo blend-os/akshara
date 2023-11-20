@@ -241,19 +241,25 @@ Server = {package_repo["repo-url"]}
         exec_chroot('pacman-key', '--init')
         exec_chroot('pacman-key', '--populate')
 
-        if exec_chroot('pacman', '-Syu', '--noconfirm') != 0:
-            if exec_chroot('pacman', '-Syu', '--noconfirm') != 0:
-                if exec_chroot('pacman', '-Syu', '--noconfirm') != 0:
-                    if exec_chroot('pacman', '-Syu', '--noconfirm') != 0:
-                        error('update failed due to unsuccessful package downloads')
-                        sys.exit(50)
+        counter = 0
+        while True:
+            return_val = exec_chroot('pacman', '-Syu', '--noconfirm')
+            counter += 1
+            if counter > 30:
+                error('failed to download packages')
+                exit(50)
+            if return_val == 0:
+                break
 
-        if exec_chroot('pacman', '-S', '--ask=4', *packages) != 0:
-            if exec_chroot('pacman', '-S', '--ask=4', *packages) != 0:
-                if exec_chroot('pacman', '-S', '--ask=4', *packages) != 0:
-                    if exec_chroot('pacman', '-S', '--ask=4', *packages) != 0:
-                        error('update failed due to unsuccessful package downloads')
-                        sys.exit(50)
+        counter = 0
+        while True:
+            return_val = exec_chroot('pacman', '-S', '--ask=4', *packages)
+            counter += 1
+            if counter > 30:
+                error('failed to download packages')
+                exit(50)
+            if return_val == 0:
+                break
 
         if type(blend_release.get('commands')) == list:
             for command in blend_release.get('commands'):
