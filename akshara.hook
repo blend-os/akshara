@@ -31,8 +31,9 @@ run_latehook() {
         cp -a /new_root/etc /new_root/.new_etc
         (cd /new_root/.new_etc && find . -type f -print0 | grep -Fxvz -f <(cd "/new_root/.update_rootfs/etc" && find . -type f) | xargs -0 rm -f)
         (cd /new_root/.new_etc && find . -type l -print0 | grep -Fxvz -f <(cd "/new_root/.update_rootfs/etc" && find . -type l) | xargs -0 rm -f)
-        (cd /new_root/var/lib && find . -maxdepth 1 -type d -print0 | grep -Fxvz -f <(cd "/new_root/.update_rootfs/var/lib" && find . -maxdepth 1 -type d) | xargs -0 -n 2 rm -rf)/
-        (cd /new_root/.update_rootfs/var/lib && find . -maxdepth 1 -type d -print0 | grep -Fxvz -f <(cd "/new_root/var/lib" && find . -maxdepth 1 -type d) | xargs -0 -n 2 sh -c 'cp -r "$@" /new_root/var/lib' sh)
+        mkdir /.old.varlib
+        (cd /new_root/var/lib && find . -maxdepth 1 -type d -print0 | grep -Fxvz -f <(cd "/new_root/.update_rootfs/var/lib" && find . -maxdepth 1 -type d) | xargs -0 sh -c 'mv "$@" /new_root/.old.varlib' sh)
+        (cd /new_root/.update_rootfs/var/lib && find . -maxdepth 1 -type d -print0 | grep -Fxvz -f <(cd "/new_root/var/lib" && find . -maxdepth 1 -type d) | xargs -0 sh -c 'mv "$@" /new_root/var/lib' sh)
         cp /new_root/.update_rootfs/etc/pacman.conf /new_root/.new_etc/pacman.conf
         rm -rf /new_root/.new_etc/pacman.d
         cp -a /new_root/.update_rootfs/etc/pacman.d /new_root/.new_etc/pacman.d
