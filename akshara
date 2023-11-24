@@ -126,6 +126,7 @@ def update_system():
     os.chdir('/')
 
     if os.path.isdir('/.new_rootfs'):
+        # add code here to unmount any directories under the new rootfs dir
         exec('rm', '-rf', '/.new_rootfs')
 
     # Check if update is available
@@ -316,7 +317,7 @@ Server = {package_repo["repo-url"]}
         exec_chroot('bash', '-c', 'echo "FILES=()" >> /etc/mkinitcpio.conf')
         exec_chroot('bash', '-c', 'echo "HOOKS=(base udev akshara autodetect keyboard keymap modconf block filesystems fsck)" >> /etc/mkinitcpio.conf')
 
-        exec_chroot('pacman', '-S', 'shadow')
+        exec_chroot('pacman', '-S', '--nonconfirm', 'shadow')
 
         exec_chroot('mkinitcpio', '-P')
 
