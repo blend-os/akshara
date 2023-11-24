@@ -79,7 +79,10 @@ def exec(*cmd, **kwargs):
 
 
 def exec_chroot(*cmd, **kwargs):
-    return exec('arch-chroot', '/.new_rootfs', *cmd, **kwargs)
+    exec('mount', '--bind', '/.new_rootfs', '/.new_rootfs')
+    ret = exec('arch-chroot', '/.new_rootfs', *cmd, **kwargs)
+    exec('umount', '-l', '/.new_rootfs')
+    return ret
 
 
 fg = colors.fg()
