@@ -187,6 +187,8 @@ def update_system():
             'blend'
         ]
 
+        aur_packages = []
+
         services = [
             'akshara'
         ]
@@ -208,6 +210,10 @@ def update_system():
 
         if type(blend_release.get('packages')) == list:
             packages += blend_release.get('packages')
+
+        if type(blend_release.get('aur-packages')) == list:
+            packages += ['fakeroot', 'paru']
+            aur_packages += blend_release.get('aur-packages')
 
         if type(blend_release.get('services')) == list:
             services += blend_release.get('services')
@@ -281,6 +287,23 @@ Server = {package_repo["repo-url"]}
             counter += 1
             if counter > 30:
                 error('failed to download packages')
+                exit(50)
+            if return_val == 0:
+                break
+        
+        counter = 0
+        while True:
+            exec_chroot('useradd', '-m', '-G', 'wheel', '-s', '/bin/bash', 'aur')
+            exec_chroot('bash', '-c', 'echo "aur ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/aur')
+            return_val = exec_chroot(
+                'runuser', '-u', 'aur', '--', 'paru', '-Sy', '--noconfirm', '--needed',
+                '--noprogressbar', '--skipreview', '--removemake', '--cleanafter', '--ask=4',
+                *blend_release.get('aur-packages'))
+            exec_chroot('userdel', '-r', 'aur')
+            exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
+            counter += 1
+            if counter > 30:
+                error('failed to download AUR packages')
                 exit(50)
             if return_val == 0:
                 break
