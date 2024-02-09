@@ -4,7 +4,7 @@ run_latehook() {
     echo
 
     # Remove /new_root/.successful-update if exists
-    rm -f /new_root/.successful-update
+    rm -f /new_root/.successful-update /.update
 
     # Detect if update downloaded.
     if [[ -d /new_root/.update_rootfs ]]; then

@@ -393,6 +393,8 @@ Server = {package_repo["repo-url"]}
 
         exec('grub-mkconfig', '-o', '/boot/grub/grub.cfg')
 
+        exec('touch', '/.update')
+
         info('downloaded update and generated new rootfs')
         info('you may reboot now')
 
