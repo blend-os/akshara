@@ -12,47 +12,25 @@ run_latehook() {
         mv /new_root/usr /new_root/.old.usr
         mv /new_root/.update_rootfs/usr /new_root/usr
 
-        # Same for /var/cache/pacman.
-        mv /new_root/var/cache/pacman /new_root/.old.pacmancache
-        mv /new_root/.update_rootfs/var/cache/pacman /new_root/var/cache
+        # Same for /etc.
+        if [[ -d /new_root/.update_rootfs/etc ]]; then
+            mv /new_root/.update_rootfs/etc /new_root/usr/etc
+        fi
+        if [[ -d /new_root/.new.etc ]]; then
+            mv /new_root/etc /new_root/.old.etc
+            mv /new_root/.new.etc /new_root/etc
+        fi
 
         # Same for /var/lib/pacman.
-        mv /new_root/var/lib/pacman /new_root/.old.var.lib.pacman
-        mv /new_root/.update_rootfs/var/lib/pacman /new_root/var/lib
-
-        # Move to /etc stage.
-        touch /new_root/.etc-stage
-    fi
-    
-    # Detect if /etc stage is active.
-    if [[ -f /new_root/.etc-stage ]]; then
-        # Create new /etc.
-        rm -rf /new_root/.new_etc; cp -a /new_root/etc /new_root/.new_etc
-        (cd /new_root/.new_etc && find . -type f | grep -Fxv -f <(cd "/new_root/.update_rootfs/etc" && find . -type f) | xargs rm -f)
-        (cd /new_root/.new_etc && find . -type l | grep -Fxv -f <(cd "/new_root/.update_rootfs/etc" && find . -type l) | grep -Fxv './localtime' | xargs rm -f)
-        mkdir -p /.old.varlib
-        (cd /new_root/var/lib && find . -maxdepth 1 -type d | grep -Fxv -f <(cd "/new_root/.update_rootfs/var/lib" && find . -maxdepth 1 -type d) | grep -Fxv './pacman' | xargs sh -c 'mv "$@" /new_root/.old.varlib' sh)
-        (cd /new_root/.update_rootfs/var/lib && find . -maxdepth 1 -type d | grep -Fxv -f <(cd "/new_root/var/lib" && find . -maxdepth 1 -type d) | xargs sh -c 'cp -r "$@" /new_root/var/lib' sh)
-        cp /new_root/.update_rootfs/etc/pacman.conf /new_root/.new_etc/pacman.conf
-        rm -rf /new_root/.new_etc/pacman.d
-        cp -a /new_root/.update_rootfs/etc/pacman.d /new_root/.new_etc/pacman.d
-        rm -rf /new_root/.new_etc/sudoers.d
-        cp -a /new_root/etc/sudoers.d /new_root/.new_etc
-        (cd /new_root/.update_rootfs/etc && find . -type f | grep -Fxv -f <(cd "/new_root/.new_etc" && find . -type f) | xargs -n 1 sh -c 'mkdir -p "/new_root/.new_etc/$(dirname "$1")"; cp -a "$1" /new_root/.new_etc/$(dirname "$1")' sh)
-        (cd /new_root/.update_rootfs/etc && find . -type l | grep -Fxv -f <(cd "/new_root/.new_etc" && find . -type l) | xargs -n 1 sh -c 'mkdir -p "/new_root/.new_etc/$(dirname "$1")"; cp -a "$1" /new_root/.new_etc/$(dirname "$1")' sh)
-        mv /new_root/etc /new_root/.old.etc || :
-        mv /new_root/.new_etc /new_root/etc
-
-        mv /new_root/etc/systemd/system /new_root/.old.etc.systemd.system
-        mv /new_root/.update_rootfs/etc/systemd/system /new_root/etc/systemd
-
-        # Successful update.
-        rm -f /new_root/.etc-stage
+        if [[ -d /new_root/.new.var.lib ]]; then
+            mv /new_root/var/lib /new_root/.old.var.lib    
+            mv /new_root/.new.var.lib /new_root/var/lib
+        fi
 
         mv /new_root/.update_rootfs /new_root/.old.update_rootfs
         touch /new_root/.successful-update
     fi
-
+    
     rm -rf /new_root/.blend-overlays/usr.workdir /new_root/.blend-overlays/varlibpacman.workdir
 
     for i in usr varlibpacman; do

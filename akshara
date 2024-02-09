@@ -22,6 +22,7 @@ import sys
 import time
 import yaml
 import shutil
+import filecmp
 import argparse
 import requests
 import platform
@@ -70,8 +71,6 @@ class colors:
         purple = '\033[45m'
         cyan = '\033[46m'
         lightgrey = '\033[47m'
-
-# END
 
 
 def exec(*cmd, **kwargs):
@@ -197,6 +196,10 @@ def update_system():
             'blend-files'
         ]
 
+        keep = [
+            '/usr/share'
+        ]
+
         if (type(blend_release.get('impl')) == str and
             type(blend_release.get('track')) != 'custom'):
             res = interpret_track(blend_release)
@@ -292,21 +295,22 @@ Server = {package_repo["repo-url"]}
                 break
         
         counter = 0
-        while True:
-            exec_chroot('useradd', '-m', '-G', 'wheel', '-s', '/bin/bash', 'aur')
-            exec_chroot('bash', '-c', 'echo "aur ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/aur')
-            return_val = exec_chroot(
-                'runuser', '-u', 'aur', '--', 'paru', '-Sy', '--noconfirm', '--needed',
-                '--noprogressbar', '--skipreview', '--removemake', '--cleanafter', '--ask=4',
-                *blend_release.get('aur-packages'))
-            exec_chroot('userdel', '-r', 'aur')
-            exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
-            counter += 1
-            if counter > 30:
-                error('failed to download AUR packages')
-                exit(50)
-            if return_val == 0:
-                break
+        if aur_packages != []:
+            while True:
+                exec_chroot('useradd', '-m', '-G', 'wheel', '-s', '/bin/bash', 'aur')
+                exec_chroot('bash', '-c', 'echo "aur ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/aur')
+                return_val = exec_chroot(
+                    'runuser', '-u', 'aur', '--', 'paru', '-Sy', '--noconfirm', '--needed',
+                    '--noprogressbar', '--skipreview', '--removemake', '--cleanafter', '--ask=4',
+                    *aur_packages)
+                exec_chroot('userdel', '-r', 'aur')
+                exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
+                counter += 1
+                if counter > 30:
+                    error('failed to download AUR packages')
+                    exit(50)
+                if return_val == 0:
+                    break
 
         for service in services:
             if type(service) is str:
@@ -343,6 +347,35 @@ Server = {package_repo["repo-url"]}
         exec_chroot('pacman', '-S', '--noconfirm', 'shadow')
 
         exec_chroot('mkinitcpio', '-P')
+
+        exec('cp', '-ax', '/.new_rootfs/etc', '/.new.etc')
+
+        etc_diff = filecmp.dircmp('/etc/', '/usr/etc/')
+
+        def get_diff_etc_files(dcmp):
+            dir_name = dcmp.left.replace('/etc/', '/.new.etc/', 1)
+            for name in dcmp.left_only:
+                exec('mkdir', '-p', dir_name)
+                exec('cp', '-ax', os.path.join(dcmp.left, name), dir_name)
+            for name in dcmp.diff_files:
+                exec('cp', '-ax', os.path.join(dcmp.left, name), dir_name)
+            for sub_dcmp in dcmp.subdirs.values():
+                get_diff_etc_files(sub_dcmp)
+
+        get_diff_etc_files(etc_diff)
+
+        exec('cp', '-ax', '/var/lib', '/.new.var.lib')
+
+        var_lib_diff = filecmp.dircmp('/.new_rootfs/var/lib/', '/.new.var.lib/')
+
+        dir_name = '/.new.var.lib/'
+        for name in var_lib_diff.left_only:
+            if os.path.isdir(os.path.join(var_lib_diff.left, name)):
+                exec('cp', '-ax', os.path.join(var_lib_diff.left, name), dir_name)
+        for name in var_lib_diff.right_only:
+            exec('rm', '-rf', os.path.join(dir_name, name))
+
+        exec('cp', '/.new_rootfs/etc/pacman.conf', '/.new.etc')
 
         exec('mv', '.new_rootfs', '.update_rootfs')
 
