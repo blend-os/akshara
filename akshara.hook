@@ -9,8 +9,10 @@ run_latehook() {
     # Detect if update downloaded.
     if [[ -d /new_root/.update_rootfs ]]; then
         # Available, rename old /usr and move new /usr to /.
-        mv /new_root/usr /new_root/.old.usr
-        mv /new_root/.update_rootfs/usr /new_root/usr
+        if [[ -d /new_root/.update_rootfs/usr ]]; then
+            mv /new_root/usr /new_root/.old.usr
+            mv /new_root/.update_rootfs/usr /new_root/usr
+        fi
 
         # Same for /etc.
         if [[ -d /new_root/.update_rootfs/etc ]]; then
@@ -21,10 +23,14 @@ run_latehook() {
             mv /new_root/.new.etc /new_root/etc
         fi
 
-        # Same for /var/lib/pacman.
+        # Same for /var.
         if [[ -d /new_root/.new.var.lib ]]; then
-            mv /new_root/var/lib /new_root/.old.var.lib    
+            mv /new_root/var/lib /new_root/.old.var.lib
             mv /new_root/.new.var.lib /new_root/var/lib
+        fi
+        if [[ -d /new_root/.update_rootfs/var/cache/pacman ]]; then
+            mv /new_root/var/cache/pacman /new_root/.old.var.cache.pacman 
+            mv /new_root/.update_rootfs/var/cache/pacman /new_root/var/cache/pacman
         fi
 
         mv /new_root/.update_rootfs /new_root/.old.update_rootfs

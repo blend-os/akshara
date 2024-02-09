@@ -124,9 +124,7 @@ def update_system():
 
     os.chdir('/')
 
-    if os.path.isdir('/.new_rootfs'):
-        # add code here to unmount any directories under the new rootfs dir
-        exec('rm', '-rf', '/.new_rootfs')
+    exec('rm', '-rf', '/.new_rootfs', '/.new.etc', '/.new.var.lib')
 
     # Check if update is available
     if not os.path.isfile('/system.yaml'):
@@ -376,6 +374,8 @@ Server = {package_repo["repo-url"]}
             exec('rm', '-rf', os.path.join(dir_name, name))
 
         exec('cp', '/.new_rootfs/etc/pacman.conf', '/.new.etc')
+        exec('rm', '-rf', '/.new.var.lib/pacman')
+        exec('cp', '-ax', '/.new_rootfs/var/lib/pacman', '/.new.var.lib/pacman')
 
         exec('mv', '.new_rootfs', '.update_rootfs')
 
