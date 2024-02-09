@@ -1,0 +1,10 @@
+[Unit]
+Description=Update system
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/akshara update
+User=root
+
+[Install]
+WantedBy=multi-user.target

@@ -402,8 +402,6 @@ def daemon():
         if dir.startswith('.old.'):
             exec('rm', '-rf', '/' + dir)
 
-    Event.wait()
-
 
 description = f'''
 {colors.bold}{colors.fg.cyan}usage:{colors.reset}
