@@ -37,7 +37,7 @@ run_latehook() {
         touch /new_root/.successful-update
     fi
 
-    for i in usr varlibpacman usrlocalshare; do
+    for i in usr varlibpacman usrlocal; do
         rm -rf /new_root/.blend-overlays/$i.workdir
         mkdir -p /new_root/.blend-overlays/$i
         mkdir -p /new_root/.blend-overlays/$i.workdir
@@ -45,5 +45,5 @@ run_latehook() {
 
     mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/usr,upperdir=/new_root/.blend-overlays/usr,workdir=/new_root/.blend-overlays/usr.workdir /new_root/usr
     mount -t overlay overlay -o index=off -o metacopy=off -o ro,lowerdir=/new_root/var/lib/pacman,upperdir=/new_root/.blend-overlays/varlibpacman,workdir=/new_root/.blend-overlays/varlibpacman.workdir /new_root/var/lib/pacman
-    mount -t overlay overlay -o rw,lowerdir=/new_root/usr/local/share,upperdir=/new_root/.blend-overlays/usrlocalshare,workdir=/new_root/.blend-overlays/usrlocalshare.workdir /new_root/usr/local/share
+    mount -t overlay overlay -o rw,lowerdir=/new_root/usr/local,upperdir=/new_root/.blend-overlays/usrlocal,workdir=/new_root/.blend-overlays/usrlocal.workdir /new_root/usr/local
 }
