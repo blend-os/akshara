@@ -370,8 +370,6 @@ Server = {package_repo["repo-url"]}
         for name in var_lib_diff.left_only:
             if os.path.isdir(os.path.join(var_lib_diff.left, name)):
                 exec('cp', '-ax', os.path.join(var_lib_diff.left, name), dir_name)
-        for name in var_lib_diff.right_only:
-            exec('rm', '-rf', os.path.join(dir_name, name))
 
         exec('cp', '/.new_rootfs/etc/pacman.conf', '/.new.etc')
         exec('rm', '-rf', '/.new.var.lib/pacman')
