@@ -346,7 +346,12 @@ Server = {package_repo["repo-url"]}
 
         exec_chroot('mkinitcpio', '-P')
 
+        exec('cp', '-ax', '/.new_rootfs/etc', '/.update_rootfs/usr/etc')
         exec('cp', '-ax', '/.new_rootfs/etc', '/.new.etc')
+
+        if os.environ.get('AKSHARA_INSTALL') == '1':
+            exec('rm', '-rf', '/usr/etc')
+            exec('cp', '-ax', '/.new_rootfs/etc', '/usr/etc')
 
         etc_diff = filecmp.dircmp('/etc/', '/usr/etc/')
 
