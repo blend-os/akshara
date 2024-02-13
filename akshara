@@ -377,6 +377,8 @@ Server = {package_repo["repo-url"]}
                 exec('cp', '-ax', os.path.join(var_lib_diff.left, name), dir_name)
 
         exec('cp', '/.new_rootfs/etc/pacman.conf', '/.new.etc')
+        exec('rm', '-rf', '/.new.etc/systemd/system')
+        exec('cp', '-ax', '/.new_rootfs/etc/systemd/system', '/.new.etc/systemd')
         exec('rm', '-rf', '/.new.var.lib/pacman')
         exec('cp', '-ax', '/.new_rootfs/var/lib/pacman', '/.new.var.lib/pacman')
 
