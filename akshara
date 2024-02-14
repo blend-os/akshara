@@ -346,6 +346,9 @@ Server = {package_repo["repo-url"]}
 
         exec_chroot('mkinitcpio', '-P')
 
+        exec('cp', '-ax', '/etc/locale.gen', '/.new_rootfs/etc/locale.gen')
+        exec_chroot('locale-gen')
+
         exec('cp', '-ax', '/.new_rootfs/etc', '/.update_rootfs/usr/etc')
         exec('cp', '-ax', '/.new_rootfs/etc', '/.new.etc')
 

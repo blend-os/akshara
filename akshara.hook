@@ -33,8 +33,6 @@ run_latehook() {
             mv /new_root/.update_rootfs/var/cache/pacman /new_root/var/cache/pacman
         fi
 
-		chroot /new_root userdel -r blend &>/dev/null
-
         mv /new_root/.update_rootfs /new_root/.old.update_rootfs
         touch /new_root/.successful-update
     fi
