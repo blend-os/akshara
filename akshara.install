@@ -9,6 +9,7 @@ build() {
     add_binary grep
     add_binary findmnt
     add_binary uname
+    add_binary chroot
     add_runscript
 }
 
