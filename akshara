@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+-#!/usr/bin/env python3
 # Copyright (C) 2023 Rudra Saraswat
 #
 # This file is part of akshara.
@@ -150,7 +150,7 @@ def update_system():
                     error('update failed')
                     sys.exit(50)
 
-        if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\.tar\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
+        if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
             error('failed checksum verification')
             print()
             info('trying download again...')
@@ -161,7 +161,7 @@ def update_system():
                 error('update failed')
                 sys.exit(50)
                 return
-            if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\.tar\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
+            if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
                 error('failed checksum verification')
                 print()
                 error('update failed')
@@ -221,8 +221,6 @@ def update_system():
 
         if type(blend_release.get('user-services')) == list:
             user_services += blend_release.get('user-services')
-
-        print(blend_release)
 
         with open('/.new_rootfs/etc/pacman.d/mirrorlist', 'w') as pacman_mirrorlist_conf:
             pacman_mirrorlist_conf.write('Server = https://cloudflaremirrors.com/archlinux/$repo/os/$arch\n')
