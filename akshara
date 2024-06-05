@@ -124,7 +124,9 @@ def update_system():
 
     os.chdir('/')
 
-    exec('rm', '-rf', '/.new_rootfs', '/.new.etc', '/.new.var.lib')
+    if exec('rm', '-rf', '/.new_rootfs', '/.new.etc', '/.new.var.lib') != 0:
+        exec('umount', '-l', '/.new_rootfs')
+        exec('rm', '-rf', '/.new_rootfs', '/.new.etc', '/.new.var.lib')
 
     # Check if update is available
     if not os.path.isfile('/system.yaml'):
@@ -222,7 +224,7 @@ def update_system():
         if type(blend_release.get('user-services')) == list:
             user_services += blend_release.get('user-services')
 
-        exec_chroot('cp', '/.new_rootfs/etc/resolv.conf', '/.new_rootfs/etc/resolv.conf.orig')
+        exec_chroot('bash', '-c', 'rm /.new_rootfs/etc/resolv.conf')
 
         with open('/.new_rootfs/etc/resolv.conf', 'w') as pacman_mirrorlist_conf:
             pacman_mirrorlist_conf.write('nameserver 1.1.1.1\n')
@@ -352,7 +354,7 @@ Server = {package_repo["repo-url"]}
         exec('cp', '-ax', '/etc/locale.gen', '/.new_rootfs/etc/locale.gen')
         exec_chroot('locale-gen')
 
-        exec_chroot('mv', '/.new_rootfs/etc/resolv.conf.orig', '/.new_rootfs/etc/resolv.conf')
+        exec_chroot('bash', '-c', 'rm /.new_rootfs/etc/resolv.conf')
 
         exec('cp', '-ax', '/.new_rootfs/etc', '/.new.etc')
 
