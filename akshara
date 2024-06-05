@@ -224,7 +224,7 @@ def update_system():
         if type(blend_release.get('user-services')) == list:
             user_services += blend_release.get('user-services')
 
-        exec_chroot('bash', '-c', 'rm /.new_rootfs/etc/resolv.conf')
+        exec_chroot('rm', '-f', '/.new_rootfs/etc/resolv.conf')
 
         with open('/.new_rootfs/etc/resolv.conf', 'w') as pacman_mirrorlist_conf:
             pacman_mirrorlist_conf.write('nameserver 1.1.1.1\n')
@@ -354,7 +354,7 @@ Server = {package_repo["repo-url"]}
         exec('cp', '-ax', '/etc/locale.gen', '/.new_rootfs/etc/locale.gen')
         exec_chroot('locale-gen')
 
-        exec_chroot('bash', '-c', 'rm /.new_rootfs/etc/resolv.conf')
+        exec_chroot('rm', '-f', '/.new_rootfs/etc/resolv.conf')
 
         exec('cp', '-ax', '/.new_rootfs/etc', '/.new.etc')
 
