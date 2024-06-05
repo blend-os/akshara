@@ -347,7 +347,6 @@ Server = {package_repo["repo-url"]}
         exec('cp', '-ax', '/etc/locale.gen', '/.new_rootfs/etc/locale.gen')
         exec_chroot('locale-gen')
 
-        exec('cp', '-ax', '/.new_rootfs/etc', '/.update_rootfs/usr/etc')
         exec('cp', '-ax', '/.new_rootfs/etc', '/.new.etc')
 
         if os.environ.get('AKSHARA_INSTALL') == '1':
@@ -384,6 +383,7 @@ Server = {package_repo["repo-url"]}
         exec('cp', '-ax', '/.new_rootfs/var/lib/pacman', '/.new.var.lib/pacman')
 
         exec('mv', '.new_rootfs', '.update_rootfs')
+        exec('cp', '-ax', '/.update_rootfs/etc', '/.update_rootfs/usr/etc')
 
         new_boot_files = []
 
