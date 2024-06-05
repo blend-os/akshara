@@ -222,6 +222,11 @@ def update_system():
         if type(blend_release.get('user-services')) == list:
             user_services += blend_release.get('user-services')
 
+        exec_chroot('cp', '/.new_rootfs/etc/resolv.conf', '/.new_rootfs/etc/resolv.conf.orig')
+
+        with open('/.new_rootfs/etc/resolv.conf', 'w') as pacman_mirrorlist_conf:
+            pacman_mirrorlist_conf.write('nameserver 1.1.1.1\n')
+
         with open('/.new_rootfs/etc/pacman.d/mirrorlist', 'w') as pacman_mirrorlist_conf:
             pacman_mirrorlist_conf.write('Server = https://cloudflaremirrors.com/archlinux/$repo/os/$arch\n')
 
@@ -346,6 +351,8 @@ Server = {package_repo["repo-url"]}
 
         exec('cp', '-ax', '/etc/locale.gen', '/.new_rootfs/etc/locale.gen')
         exec_chroot('locale-gen')
+
+        exec_chroot('mv', '/.new_rootfs/etc/resolv.conf.orig', '/.new_rootfs/etc/resolv.conf')
 
         exec('cp', '-ax', '/.new_rootfs/etc', '/.new.etc')
 
