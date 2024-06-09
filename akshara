@@ -230,7 +230,10 @@ def update_system():
             pacman_mirrorlist_conf.write('nameserver 1.1.1.1\n')
 
         with open('/.new_rootfs/etc/pacman.d/mirrorlist', 'w') as pacman_mirrorlist_conf:
-            pacman_mirrorlist_conf.write('Server = https://cloudflaremirrors.com/archlinux/$repo/os/$arch\n')
+            if type(blend_release.get('arch-repo')) == str:
+                pacman_mirrorlist_conf.write(f'Server = {blend_release.get("arch-repo")}/$repo/os/$arch\n')
+            else:
+                pacman_mirrorlist_conf.write('Server = https://cloudflaremirrors.com/archlinux/$repo/os/$arch\n')
 
         exec_chroot('mkdir', '-p', '/var/cache/pacman/pkg')
         exec_chroot('rm', '-rf', '/var/cache/pacman/pkg')
