@@ -383,6 +383,18 @@ Server = {package_repo["repo-url"]}
             if os.path.isdir(os.path.join(var_lib_diff.left, name)):
                 exec('cp', '-ax', os.path.join(var_lib_diff.left, name), dir_name)
 
+        exec('cp', '/etc/passwd', '/.new_rootfs/etc')
+        exec('cp', '/etc/group', '/.new_rootfs/etc')
+        exec('cp', '/etc/shadow', '/.new_rootfs/etc')
+        exec('cp', '/etc/gshadow', '/.new_rootfs/etc')
+
+        exec_chroot('systemd-sysusers')
+
+        exec('cp', '/.new_rootfs/etc/passwd', '/.new.etc')
+        exec('cp', '/.new_rootfs/etc/group', '/.new.etc')
+        exec('cp', '/.new_rootfs/etc/shadow', '/.new.etc')
+        exec('cp', '/.new_rootfs/etc/gshadow', '/.new.etc')
+
         exec('cp', '/.new_rootfs/etc/pacman.conf', '/.new.etc')
         exec('rm', '-rf', '/.new.etc/systemd/system')
         exec('cp', '-ax', '/.new_rootfs/etc/systemd/system', '/.new.etc/systemd')
