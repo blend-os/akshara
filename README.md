@@ -11,3 +11,5 @@ umount -l /usr && sudo mv ./akshara /usr/bin/akshara && sudo chmod +x /usr/bin/a
 ```
 
 Replace `./akshara` with wherever your modified copy of `akshara` is.
+
+⚠ **ANY CHANGES TO `/usr/bin/akshara` WILL BE REVERTED AFTER EVERY UPDATE!** ⚠
