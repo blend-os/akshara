@@ -260,6 +260,7 @@ def update_system():
 
         with open('/.new_rootfs/etc/pacman.conf', 'r') as original: data = original.read()
         with open('/.new_rootfs/etc/pacman.conf', 'w') as modified: modified.write(data.replace("[options]", "[options]\nParallelDownloads = 32\n"))
+        with open('/.new_rootfs/etc/pacman.conf', 'w') as modified: modified.write(data.replace("#[multilib]\n#Include = /etc/pacman.d/mirrorlist", "[multilib]\nInclude = /etc/pacman.d/mirrorlist"))
 
         with open('/.new_rootfs/etc/pacman.conf', 'a') as pacman_conf:
             pacman_conf.write(f'''
