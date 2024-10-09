@@ -23,6 +23,12 @@ run_latehook() {
             mv /new_root/.new.etc /new_root/etc
         fi
 
+        # Same for /opt
+        if [[ -d /new_root/.update_rootfs/opt ]]; then
+            mv /new_root/opt /new_root/.old.opt
+            mv /new_root/.update_rootfs/opt /new_root/opt
+        fi
+
         # Same for /var.
         if [[ -d /new_root/.new.var.lib ]]; then
             mv /new_root/var/lib /new_root/.old.var.lib
