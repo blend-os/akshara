@@ -137,33 +137,41 @@ def update_system():
         blend_release = yaml.load(
             blend_release_file, Loader=yaml.FullLoader)
 
+        # TODO: Add check that all packages actually exist
+
         info('downloading Arch tarball...')
 
+            # TODO: currently it errors if it doesn't have arch-repo anyways, so this doesn't need any extra checking, maybe add a check for that later though
+        # The mirror to use for downloading the bootstrap image
+        # For example, for the Arch mirror at mirrors.acm.wpi.edu, you'd use https://mirrors.acm.wpi.edu/archlinux
+        # Not sure why this wouldn't just use `arch-repo` but whatever
+        bootstrap_mirror = blend_release.get("arch-repo")
+
         if not os.path.isfile('/.update.tar.zst'):
-            if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
+            if exec('wget', '-q', '--show-progress', f'{bootstrap_mirror}/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
                 warn('failed download')
                 print()
                 info('trying download again...')
                 print()
                 exec('rm', '-f', '/.update.tar.zst')
-                if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
+                if exec('wget', '-q', '--show-progress', f'{bootstrap_mirror}/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
                     error('failed download')
                     print()
                     error('update failed')
                     sys.exit(50)
 
-        if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
+        if exec('bash', '-c', f'sha256sum -c --ignore-missing <(wget -qO- {bootstrap_mirror}/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
             error('failed checksum verification')
             print()
             info('trying download again...')
             exec('rm', '-f', '/.update.tar.zst')
-            if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
+            if exec('wget', '-q', '--show-progress', f'{bootstrap_mirror}/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
                 error('failed download')
                 print()
                 error('update failed')
                 sys.exit(50)
                 return
-            if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
+            if exec('bash', '-c', f'sha256sum -c --ignore-missing <(wget -qO- {bootstrap_mirror}/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
                 error('failed checksum verification')
                 print()
                 error('update failed')
