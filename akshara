@@ -458,10 +458,8 @@ command_map = {'help': 'help',
                'daemon': daemon}
 parser.add_argument('command', choices=command_map.keys(),
                     help=argparse.SUPPRESS)
-parser.add_argument('pkg', action='store', type=str,
-                    nargs='*', help=argparse.SUPPRESS)
-parser.add_argument('--headless',
-                    action='store_true', help=argparse.SUPPRESS)
+parser.add_argument('--keep-files-on-error',
+                    action='store_true', help="keep working files on error")
 parser.add_argument('-v', '--version', action='version',
                     version=f'%(prog)s {__version}', help=argparse.SUPPRESS)
 
@@ -484,11 +482,20 @@ try:
         parser.parse_args(['--version'])
     elif command == update_system:
         exec('touch', '/var/lib/.akshara-system-lock')
-        system_lock = fasteners.InterProcessLock('/var/lib/.akshara-system-lock')
+        system_lock = fasteners.InterProcessLock(
+            '/var/lib/.akshara-system-lock')
         info('attempting to acquire system lock')
         with system_lock:
             command()
     else:
         command()
-except KeyboardInterrupt:
+except:
     error('aborting')
+    # remove update and akshara stuff if the program errors (either exited by the user or an error) and is updating
+    if command == update_system and not args.keep_files_on_error:
+        exec('umount', '-rf', '/.new_rootfs/')
+        exec('rmdir', '/.new_rootfs/')
+        exec('rm', '-rf', '/.update_rootfs')
+        exec('rm', '-f', '/.update')
+    else:
+        print("--keep-files-on-error specified, not deleting files (/.new_rootfs/, /.update_rootfs/, /.update)")
