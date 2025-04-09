@@ -103,10 +103,11 @@ def error(err):
 
 
 def interpret_track(blend_release):
-    result = yaml.safe_load(requests.get(blend_release.get('impl') + '/' + blend_release.get('track') + '.yaml', allow_redirects=True).content.decode())
+    result = yaml.safe_load(requests.get(blend_release.get(
+        'impl') + '/' + blend_release.get('track') + '.yaml', allow_redirects=True).content.decode())
 
     if (type(result.get('impl')) == str and
-        type(result.get('track')) != 'custom'):
+            type(result.get('track')) != 'custom'):
         res = interpret_track(result)
 
         for i in res.keys():
@@ -137,33 +138,41 @@ def update_system():
         blend_release = yaml.load(
             blend_release_file, Loader=yaml.FullLoader)
 
+        # TODO: Add check that all packages actually exist
+
         info('downloading Arch tarball...')
 
+        # TODO: currently it errors if it doesn't have arch-repo anyways, so this doesn't need any extra checking, maybe add a check for that later though
+        # The mirror to use for downloading the bootstrap image
+        # For example, for the Arch mirror at mirrors.acm.wpi.edu, you'd use https://mirrors.acm.wpi.edu/archlinux
+        # Not sure why this wouldn't just use `arch-repo` but whatever
+        bootstrap_mirror = blend_release.get("arch-repo")
+
         if not os.path.isfile('/.update.tar.zst'):
-            if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
+            if exec('wget', '-q', '--show-progress', f'{bootstrap_mirror}/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
                 warn('failed download')
                 print()
                 info('trying download again...')
                 print()
                 exec('rm', '-f', '/.update.tar.zst')
-                if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
+                if exec('wget', '-q', '--show-progress', f'{bootstrap_mirror}/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
                     error('failed download')
                     print()
                     error('update failed')
                     sys.exit(50)
 
-        if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
+        if exec('bash', '-c', f'sha256sum -c --ignore-missing <(wget -qO- {bootstrap_mirror}/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
             error('failed checksum verification')
             print()
             info('trying download again...')
             exec('rm', '-f', '/.update.tar.zst')
-            if exec('wget', '-q', '--show-progress', 'https://geo.mirror.pkgbuild.com/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
+            if exec('wget', '-q', '--show-progress', f'{bootstrap_mirror}/iso/latest/archlinux-bootstrap-x86_64.tar.zst', '-O', '/.update.tar.zst') != 0:
                 error('failed download')
                 print()
                 error('update failed')
                 sys.exit(50)
                 return
-            if exec('bash', '-c', 'sha256sum -c --ignore-missing <(wget -qO- https://geo.mirror.pkgbuild.com/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
+            if exec('bash', '-c', f'sha256sum -c --ignore-missing <(wget -qO- {bootstrap_mirror}/iso/latest/sha256sums.txt | sed "s/archlinux-bootstrap-x86_64\\.tar\\.zst/.update.tar.zst/g") 2>/dev/null') != 0:
                 error('failed checksum verification')
                 print()
                 error('update failed')
@@ -201,7 +210,7 @@ def update_system():
         ]
 
         if (type(blend_release.get('impl')) == str and
-            type(blend_release.get('track')) != 'custom'):
+                type(blend_release.get('track')) != 'custom'):
             res = interpret_track(blend_release)
 
             for i in res.keys():
@@ -231,13 +240,16 @@ def update_system():
 
         with open('/.new_rootfs/etc/pacman.d/mirrorlist', 'w') as pacman_mirrorlist_conf:
             if type(blend_release.get('arch-repo')) == str:
-                pacman_mirrorlist_conf.write(f'Server = {blend_release.get("arch-repo")}/$repo/os/$arch\n')
+                pacman_mirrorlist_conf.write(
+                    f'Server = {blend_release.get("arch-repo")}/$repo/os/$arch\n')
             else:
-                pacman_mirrorlist_conf.write('Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch\n')
+                pacman_mirrorlist_conf.write(
+                    'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch\n')
 
         exec_chroot('mkdir', '-p', '/var/cache/pacman/pkg')
         exec_chroot('rm', '-rf', '/var/cache/pacman/pkg')
-        exec('cp', '-r', '/var/cache/pacman/pkg', '/.new_rootfs/var/cache/pacman')
+        exec('cp', '-r', '/var/cache/pacman/pkg',
+             '/.new_rootfs/var/cache/pacman')
 
         # update packages
         exec_chroot('pacman-key', '--init')
@@ -253,14 +265,20 @@ def update_system():
             if return_val == 0:
                 break
 
-        exec_chroot('reflector', '--latest', '5', '--protocol', 'https', '--sort', 'rate', '--save', '/etc/pacman.d/mirrorlist')
+        exec_chroot('reflector', '--latest', '5', '--protocol', 'https',
+                    '--sort', 'rate', '--save', '/etc/pacman.d/mirrorlist')
 
-        #exec_chroot('sed', 's/#//g', '-i', '/etc/pacman.d/mirrorlist')
-        #exec_chroot('bash', '-c', 'grep "^Server =" /etc/pacman.d/mirrorlist > /etc/pacman.d/mirrorlist.tmp; mv /etc/pacman.d/mirrorlist.tmp /etc/pacman.d/mirrorlist')
+        # exec_chroot('sed', 's/#//g', '-i', '/etc/pacman.d/mirrorlist')
+        # exec_chroot('bash', '-c', 'grep "^Server =" /etc/pacman.d/mirrorlist > /etc/pacman.d/mirrorlist.tmp; mv /etc/pacman.d/mirrorlist.tmp /etc/pacman.d/mirrorlist')
 
-        with open('/.new_rootfs/etc/pacman.conf', 'r') as original: data = original.read()
-        with open('/.new_rootfs/etc/pacman.conf', 'w') as modified: modified.write(data.replace("[options]", "[options]\nParallelDownloads = 32\n"))
-        with open('/.new_rootfs/etc/pacman.conf', 'w') as modified: modified.write(data.replace("#[multilib]\n#Include = /etc/pacman.d/mirrorlist", "[multilib]\nInclude = /etc/pacman.d/mirrorlist"))
+        with open('/.new_rootfs/etc/pacman.conf', 'r') as original:
+            data = original.read()
+        with open('/.new_rootfs/etc/pacman.conf', 'w') as modified:
+            modified.write(data.replace(
+                "[options]", "[options]\nParallelDownloads = 32\n"))
+        with open('/.new_rootfs/etc/pacman.conf', 'w') as modified:
+            modified.write(data.replace(
+                "#[multilib]\n#Include = /etc/pacman.d/mirrorlist", "[multilib]\nInclude = /etc/pacman.d/mirrorlist"))
 
         with open('/.new_rootfs/etc/pacman.conf', 'a') as pacman_conf:
             pacman_conf.write(f'''
@@ -272,7 +290,7 @@ Server = {blend_release['repo']}
             if type(blend_release.get('package-repos')) == list:
                 for package_repo in blend_release.get('package-repos'):
                     if (type(package_repo.get('name')) == str and
-                        type(package_repo.get('repo-url')) == str):
+                            type(package_repo.get('repo-url')) == str):
                         pacman_conf.write(f'''
 [{package_repo["name"]}]
 SigLevel = Never
@@ -300,12 +318,14 @@ Server = {package_repo["repo-url"]}
                 exit(50)
             if return_val == 0:
                 break
-        
+
         counter = 0
         if aur_packages != []:
             while True:
-                exec_chroot('useradd', '-m', '-G', 'wheel', '-s', '/bin/bash', 'aur')
-                exec_chroot('bash', '-c', 'echo "aur ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/aur')
+                exec_chroot('useradd', '-m', '-G', 'wheel',
+                            '-s', '/bin/bash', 'aur')
+                exec_chroot(
+                    'bash', '-c', 'echo "aur ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/aur')
                 return_val = exec_chroot(
                     'runuser', '-u', 'aur', '--', 'paru', '-Sy', '--noconfirm', '--needed',
                     '--noprogressbar', '--skipreview', '--removemake', '--cleanafter', '--ask=4',
@@ -377,7 +397,8 @@ Server = {package_repo["repo-url"]}
 
         exec('cp', '-ax', '/var/lib', '/.new.var.lib')
 
-        var_lib_diff = filecmp.dircmp('/.new_rootfs/var/lib/', '/.new.var.lib/')
+        var_lib_diff = filecmp.dircmp(
+            '/.new_rootfs/var/lib/', '/.new.var.lib/')
 
         dir_name = '/.new.var.lib/'
         for name in var_lib_diff.left_only:
@@ -458,10 +479,8 @@ command_map = {'help': 'help',
                'daemon': daemon}
 parser.add_argument('command', choices=command_map.keys(),
                     help=argparse.SUPPRESS)
-parser.add_argument('pkg', action='store', type=str,
-                    nargs='*', help=argparse.SUPPRESS)
-parser.add_argument('--headless',
-                    action='store_true', help=argparse.SUPPRESS)
+parser.add_argument('--keep-files-on-error',
+                    action='store_true', help="keep working files on error")
 parser.add_argument('-v', '--version', action='version',
                     version=f'%(prog)s {__version}', help=argparse.SUPPRESS)
 
@@ -484,11 +503,20 @@ try:
         parser.parse_args(['--version'])
     elif command == update_system:
         exec('touch', '/var/lib/.akshara-system-lock')
-        system_lock = fasteners.InterProcessLock('/var/lib/.akshara-system-lock')
+        system_lock = fasteners.InterProcessLock(
+            '/var/lib/.akshara-system-lock')
         info('attempting to acquire system lock')
         with system_lock:
             command()
     else:
         command()
-except KeyboardInterrupt:
+except:
     error('aborting')
+    # remove update and akshara stuff if the program errors (either exited by the user or an error) and is updating
+    if command == update_system and not args.keep_files_on_error:
+        exec('umount', '-rf', '/.new_rootfs/')
+        exec('rmdir', '/.new_rootfs/')
+        exec('rm', '-rf', '/.update_rootfs')
+        exec('rm', '-f', '/.update')
+    else:
+        print("--keep-files-on-error specified, not deleting files (/.new_rootfs/, /.update_rootfs/, /.update)")
