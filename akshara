@@ -530,7 +530,7 @@ except:
     # remove update and akshara stuff if the program errors (either exited by the user or an error) and is updating
     if command == update_system and not args.keep_files_on_error:
         exec('umount', '-rf', '/.new_rootfs/')
-        exec('rmdir', '/.new_rootfs/')
+        exec('rm', '-rf', '/.new_rootfs/')
         exec('rm', '-rf', '/.update_rootfs')
         exec('rm', '-f', '/.update')
     else:
