@@ -243,7 +243,7 @@ def update_system():
             packages += blend_release.get('packages')
 
         if type(blend_release.get('aur-packages')) == list:
-            packages += ['fakeroot', 'paru', 'yay-git']
+            packages += ['fakeroot', 'chaotic-aur/paru']
             aur_packages += blend_release.get('aur-packages')
 
         if type(blend_release.get('services')) == list:
@@ -347,8 +347,8 @@ Server = {package_repo["repo-url"]}
                 exec_chroot(
                     'bash', '-c', 'echo "aur ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/aur')
                 return_val = exec_chroot(
-                    'runuser', '-u', 'aur', '--', 'yay', '-Sy', '--noconfirm', '--needed',
-                    '--noprogressbar', '--removemake', '--cleanafter', '--ask=4',
+                    'runuser', '-u', 'aur', '--', 'paru', '-Sy', '--noconfirm', '--needed',
+                    '--noprogressbar', '--removemake', '--skipreview', '--cleanafter', '--ask=4',
                     *aur_packages)
                 exec_chroot('userdel', '-r', 'aur')
                 exec_chroot('rm', '-f', '/etc/sudoers.d/aur')
