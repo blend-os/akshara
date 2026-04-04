@@ -1,15 +1,3 @@
 # akshara
 
-A simple system builder and immutability layer.
-
-## Development
-
-To test a modified copy of `akshara`, run the following on a working blendOS install:
-
-```sh
-sudo umount -l /usr && sudo cp ./akshara /usr/bin/akshara && sudo chmod +x /usr/bin/akshara
-```
-
-Replace `./akshara` with wherever your modified copy of `akshara` is.
-
-⚠ **ANY CHANGES TO `/usr/bin/akshara` WILL BE REVERTED AFTER EVERY UPDATE!** ⚠
+The utility providing immutability to blendOS.

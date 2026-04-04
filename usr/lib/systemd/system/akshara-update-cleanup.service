@@ -1,0 +1,12 @@
+[Unit]
+Description=Clean-up following system update
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=no
+User=root
+ExecStart=/usr/bin/find / -maxdepth 1 -type d -name '.old.*' -exec /usr/bin/rm -rf -- {} +
+
+[Install]
+WantedBy=multi-user.target

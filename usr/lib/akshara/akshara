@@ -1,0 +1,118 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+import click
+import fasteners
+import yaml
+from utils.gen_rootfs import gen_rootfs
+from utils.helpers import (
+    get_installed_system_config,
+    is_already_latest,
+    notify_prompt,
+    output,
+    resolve_config,
+)
+from utils.update import update
+
+
+@click.group()
+def cli():
+    """Handles system operations."""
+
+
+@cli.command("gen-rootfs")
+@click.argument("config_file", type=click.File("r"))
+@click.argument(
+    "rootfs_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+def cmd_gen_rootfs(config_file, rootfs_path):
+    """Generates a rootfs using a provided configuration file."""
+    gen_rootfs(resolve_config(yaml.safe_load(config_file.read())), rootfs_path)
+
+
+@cli.command("update-check", hidden=True)
+def update_check_daemon():
+    if os.environ.get("USER") == "gdm-greeter":
+        exit()
+
+    check_interval = 3600
+
+    if isinstance(get_installed_system_config().get("auto-update"), dict):
+        if not get_installed_system_config()["auto-update"]["enabled"]:
+            exit()
+        if isinstance(
+            get_installed_system_config()["auto-update"].get("interval"), int
+        ):
+            check_interval = get_installed_system_config()["auto-update"]["interval"]
+
+    while True:
+        try:
+            if not os.path.isdir("/.update_rootfs"):
+                if not is_already_latest():
+                    if notify_prompt(
+                        title="Update available",
+                        body="A system update is available",
+                        actions={"update": "Update in the background"},
+                    ):
+                        if (
+                            subprocess.run(["pkexec", "akshara", "update"]).returncode
+                            == 0
+                        ):
+                            if (
+                                notify_prompt(
+                                    title="System updated",
+                                    body="Reboot to apply update?",
+                                    actions={"reboot": "Reboot now", "later": "Later"},
+                                )
+                                == "reboot"
+                            ):
+                                subprocess.run(["reboot"])
+        except Exception:
+            pass
+
+        time.sleep(check_interval)
+
+
+@cli.command("update")
+@click.option("-f", "--force", is_flag=True)
+def update_cmd(force):
+    """
+    Update your system.
+    """
+
+    if os.geteuid() != 0:
+        output.error("must be run as root")
+        exit(1)
+
+    Path("/var/lib/akshara").mkdir(parents=True, exist_ok=True)
+    system_lock = fasteners.InterProcessLock("/var/lib/akshara/.system-lock")
+    output.info("attempting to acquire system lock")
+    output.info(
+        "if stuck at this line for long, an update may be progressing in the background"
+    )
+
+    with system_lock:
+        print()
+        output.info("checking if already up-to-date...")
+
+        if force or (not os.path.isdir("/.update_rootfs")):
+            if (not force) and is_already_latest():
+                output.info("your system is already up-to-date")
+                sys.exit(0)
+        else:
+            output.error(
+                "an update has already been downloaded and is waiting to be applied"
+            )
+            output.error("you must reboot before running this command")
+            sys.exit(1)
+
+        update()
+        output.info("update complete; you may now reboot.")
+
+
+cli()
