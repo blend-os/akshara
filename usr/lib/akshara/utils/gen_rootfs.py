@@ -22,7 +22,14 @@ def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) ->
 
     if use_cache:
         subprocess.run(["mkdir", "-p", "/var/cache/blendOS"])
-        subprocess.run(["mount", "--bind", "/var/cache/blendOS", f"{rootfs_path}/var/cache/blendOS"])
+        subprocess.run(
+            [
+                "mount",
+                "--bind",
+                "/var/cache/blendOS",
+                f"{rootfs_path}/var/cache/blendOS",
+            ]
+        )
 
     if (
         subprocess.run(
@@ -50,18 +57,19 @@ def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) ->
         inputs = stage["inputs"] if isinstance(stage.get("inputs"), list) else []
         run_script_rootfs(rootfs, modules[stage["module"]], inputs)
 
-    if (
-        subprocess.run(
-            ["bash", "-s"],
-            text=True,
-            input=system_config["distro-config"]["finalise"],
-            cwd=str(rootfs_path),
-            env=os.environ.copy() | system_config["env"],
-        ).returncode
-        != 0
-    ):
-        output.error("failed to finalise rootfs")
-        exit(1)
+    if isinstance(system_config["distro-config"].get("finalise"), str):
+        if (
+            subprocess.run(
+                ["bash", "-s"],
+                text=True,
+                input=system_config["distro-config"]["finalise"],
+                cwd=str(rootfs_path),
+                env=os.environ.copy() | system_config["env"],
+            ).returncode
+            != 0
+        ):
+            output.error("failed to finalise rootfs")
+            exit(1)
 
     with open(os.path.join(rootfs_path, "usr/system.json"), "w") as system_json_file:
         json.dump(system_config, system_json_file, ensure_ascii=False)
