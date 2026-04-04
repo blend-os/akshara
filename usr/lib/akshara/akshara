@@ -30,9 +30,12 @@ def cli():
 @click.argument(
     "rootfs_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
 )
-def cmd_gen_rootfs(config_file, rootfs_path):
+@click.option("-n", "--no-cache", is_flag=True)
+def cmd_gen_rootfs(config_file, rootfs_path, no_cache):
     """Generates a rootfs using a provided configuration file."""
-    gen_rootfs(resolve_config(yaml.safe_load(config_file.read())), rootfs_path)
+    gen_rootfs(
+        resolve_config(yaml.safe_load(config_file.read())), rootfs_path, no_cache
+    )
 
 
 @cli.command("update-check", hidden=True)
