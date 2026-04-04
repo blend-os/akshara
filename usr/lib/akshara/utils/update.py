@@ -21,17 +21,18 @@ def update_cleanup() -> None:
         "/var/cache/akshara/rootfs/var/cache/blendOS",
     ):
         subprocess.run(
-            ["umount", "-l", path],
+            ["/sbin/umount", "-l", path],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
 
     subprocess.run(
         [
-            "rm",
+            "/bin/rm",
             "-rf",
             "/var/cache/akshara/rootfs",
             "/.update_rootfs",
+            "/.old.update_rootfs",
             "/.boot.bkp",
         ]
     )
@@ -45,19 +46,23 @@ def merge_etc(new_rootfs: RootFS, overrides_keep_new: dict) -> None:
         overrides_keep_new: Dictionary comprising overrides and whether to keep new.
     """
     if not os.path.isdir("/usr/etc"):
-        subprocess.run(["rm", "-rf", "/usr/etc"])
-        subprocess.run(["cp", "-ax", "/etc", "/usr/etc"])
+        subprocess.run(["/bin/rm", "-rf", "/usr/etc"])
+        subprocess.run(["/bin/cp", "-ax", "/etc", "/usr/etc"])
 
     etc_diff = filecmp.dircmp("/etc/", "/usr/etc/")
 
     def handle_diff_etc_files(dcmp):
         dir_name = dcmp.left.replace("/etc/", f"{new_rootfs}/etc/", 1)
-        subprocess.run(["mkdir", "-p", dir_name])
+        subprocess.run(["/bin/mkdir", "-p", dir_name])
         for name in dcmp.left_only:
-            subprocess.run(["cp", "-ax", "--", os.path.join(dcmp.left, name), dir_name])
+            subprocess.run(
+                ["/bin/cp", "-ax", "--", os.path.join(dcmp.left, name), dir_name]
+            )
         for name in dcmp.diff_files:
-            subprocess.run(["rm", "-f", "--", os.path.join(dir_name, name)])
-            subprocess.run(["cp", "-ax", "--", os.path.join(dcmp.left, name), dir_name])
+            subprocess.run(["/bin/rm", "-f", "--", os.path.join(dir_name, name)])
+            subprocess.run(
+                ["/bin/cp", "-ax", "--", os.path.join(dcmp.left, name), dir_name]
+            )
         for sub_dcmp in dcmp.subdirs.values():
             handle_diff_etc_files(sub_dcmp)
 
@@ -69,11 +74,11 @@ def merge_etc(new_rootfs: RootFS, overrides_keep_new: dict) -> None:
             and os.path.exists(override)
             and new_rootfs.exists(override)
         ):
-            subprocess.run(["rm", "-rf", f"{new_rootfs}/{override}"])
+            subprocess.run(["/bin/rm", "-rf", f"{new_rootfs}/{override}"])
             if keep_new:
                 subprocess.run(
                     [
-                        "cp",
+                        "/bin/cp",
                         "-ax",
                         f"{new_rootfs}/usr/{override}",
                         f"{new_rootfs}/{override}",
@@ -82,7 +87,7 @@ def merge_etc(new_rootfs: RootFS, overrides_keep_new: dict) -> None:
             else:
                 subprocess.run(
                     [
-                        "cp",
+                        "/bin/cp",
                         "-ax",
                         override,
                         f"{new_rootfs}/{override}",
@@ -97,8 +102,8 @@ def merge_var(new_rootfs: RootFS, overrides_keep_new: dict) -> None:
         new_rootfs: Path to rootfs.
         overrides_keep_new: Dictionary comprising overrides and whether to keep new.
     """
-    subprocess.run(["rm", "-rf", f"{new_rootfs}/var/lib"])
-    subprocess.run(["cp", "-ax", "/var/lib", f"{new_rootfs}/var/lib"])
+    subprocess.run(["/bin/rm", "-rf", f"{new_rootfs}/var/lib"])
+    subprocess.run(["/bin/cp", "-ax", "/var/lib", f"{new_rootfs}/var/lib"])
 
     var_lib_diff = filecmp.dircmp(
         f"{new_rootfs}/usr/var/lib/", f"{new_rootfs}/var/lib/"
@@ -108,7 +113,7 @@ def merge_var(new_rootfs: RootFS, overrides_keep_new: dict) -> None:
     for name in var_lib_diff.left_only:
         if os.path.isdir(os.path.join(var_lib_diff.left, name)):
             subprocess.run(
-                ["cp", "-ax", os.path.join(var_lib_diff.left, name), dir_name]
+                ["/bin/cp", "-ax", os.path.join(var_lib_diff.left, name), dir_name]
             )
 
     for override, keep_new in overrides_keep_new.items():
@@ -117,11 +122,11 @@ def merge_var(new_rootfs: RootFS, overrides_keep_new: dict) -> None:
             and os.path.exists(override)
             and new_rootfs.exists(override)
         ):
-            subprocess.run(["rm", "-rf", f"{new_rootfs}/{override}"])
+            subprocess.run(["/bin/rm", "-rf", f"{new_rootfs}/{override}"])
             if keep_new:
                 subprocess.run(
                     [
-                        "cp",
+                        "/bin/cp",
                         "-ax",
                         f"{new_rootfs}/usr/{override}",
                         f"{new_rootfs}/{override}",
@@ -130,7 +135,7 @@ def merge_var(new_rootfs: RootFS, overrides_keep_new: dict) -> None:
             else:
                 subprocess.run(
                     [
-                        "cp",
+                        "/bin/cp",
                         "-ax",
                         override,
                         f"{new_rootfs}/{override}",
@@ -138,56 +143,76 @@ def merge_var(new_rootfs: RootFS, overrides_keep_new: dict) -> None:
                 )
 
 
-def merge_into_tree(tree_root: str, tmp_tree_root: str) -> None:
+def merge_into_tree(
+    tree_root: str, tmp_tree_root: str, copy_symlinks: bool = True
+) -> None:
     """Merge a new tree into an existing tree.
 
     Args:
         tree_root: String containing path to existing tree.
         tmp_tree_root: String containing path to new tree.
+        copy_symlinks: Whether to copy symlinks.
     """
 
     new_paths = []
     for tmp_root, _, files in os.walk(tmp_tree_root):
         root = tmp_root.replace(tmp_tree_root, tree_root, 1)
-        subprocess.run(["mkdir", "-p", root])
+        subprocess.run(["/bin/mkdir", "-p", root])
         new_paths.append(root)
         for path in files:
-            subprocess.run(["rm", "-rf", "--", os.path.join(root, path)])
-            subprocess.run(
-                [
-                    "cp",
-                    "-ax",
-                    os.path.join(tmp_root, path),
-                    os.path.join(root, path),
-                ]
-            )
+            subprocess.run(["/bin/rm", "-rf", "--", os.path.join(root, path)])
+            if copy_symlinks:
+                subprocess.run(
+                    [
+                        "/bin/cp",
+                        "-ax",
+                        os.path.join(tmp_root, path),
+                        os.path.join(root, path),
+                    ]
+                )
+            else:
+                if os.path.islink(os.path.join(tmp_root, path)):
+                    output.info(
+                        f"not merging {os.path.join(root, path)} as it is a symlink"
+                    )
+                    continue
+                else:
+                    subprocess.run(
+                        [
+                            "/bin/cp",
+                            "-ax",
+                            os.path.join(tmp_root, path),
+                            os.path.join(root, path),
+                        ]
+                    )
             new_paths.append(os.path.join(root, path))
 
     for root, _, files in os.walk(tree_root):
         for path in files:
             if os.path.join(root, path) not in new_paths:
-                subprocess.run(["rm", "-rf", "--", os.path.join(root, path)])
+                subprocess.run(["/bin/rm", "-rf", "--", os.path.join(root, path)])
 
 
 def handle_boot(new_rootfs: RootFS, boot_config: dict) -> None:
     """Handles /boot partition."""
 
-    subprocess.run(["rm", "-rf", "/.boot.bkp"])
-    subprocess.run(["cp", "-ax", "/boot", "/.boot.bkp"])
+    subprocess.run(["/bin/rm", "-rf", "/.boot.bkp"])
+    subprocess.run(["/bin/cp", "-ax", "/boot", "/.boot.bkp"])
 
     # Replace contents of /boot with those from new rootfs
     # FIXME: should be atomic
-    merge_into_tree("/boot", os.path.join(str(new_rootfs), "boot"))
+    merge_into_tree("/boot", os.path.join(str(new_rootfs), "boot"), False)
 
-    subprocess.run(["mount", "--bind", "/boot", f"{new_rootfs}/boot"])
+    subprocess.run(["/sbin/mount", "--bind", "/boot", f"{new_rootfs}/boot"])
 
     def restore_old_boot():
         subprocess.run(
-            ["umount", "-l", f"{new_rootfs}/boot"],
+            ["/sbin/umount", "-l", f"{new_rootfs}/boot"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
         merge_into_tree("/boot", "/.boot.bkp")
+        subprocess.run(["/bin/rm", "-rf", "/.boot.bkp"])
         subprocess.run(["mv", "/.update_rootfs", "/.old.update_rootfs"])
 
     if boot_config["type"] == "bios":
@@ -195,7 +220,7 @@ def handle_boot(new_rootfs: RootFS, boot_config: dict) -> None:
             if (
                 new_rootfs.exec_chroot(
                     [
-                        "grub-install",
+                        "/sbin/grub-install",
                         "--target=i386-pc",
                         boot_config["device"],
                     ]
@@ -217,7 +242,7 @@ def handle_boot(new_rootfs: RootFS, boot_config: dict) -> None:
             if (
                 new_rootfs.exec_chroot(
                     [
-                        "grub-install",
+                        "/sbin/grub-install",
                         f"--efi-directory={efi_directory}",
                         "--target=x86_64-efi",
                         "--removable",
@@ -242,14 +267,14 @@ def handle_boot(new_rootfs: RootFS, boot_config: dict) -> None:
         exit(1)
 
     if boot_config["loader"] == "grub":
-        new_rootfs.exec_chroot(["grub-mkconfig", "-o", "/boot/grub/grub.cfg"])
+        new_rootfs.exec_chroot(["/sbin/grub-mkconfig", "-o", "/boot/grub/grub.cfg"])
 
     subprocess.run(
-        ["umount", "-l", f"{new_rootfs}/boot"],
+        ["/sbin/umount", "-l", f"{new_rootfs}/boot"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    subprocess.run(["rm", "-rf", "/.boot.bkp"])
+    subprocess.run(["/bin/rm", "-rf", "/.boot.bkp"])
 
 
 def update() -> None:
@@ -265,7 +290,7 @@ def update() -> None:
 
     output.info("generating new rootfs")
 
-    subprocess.run(["rm", "-rf", "/var/cache/akshara"])
+    subprocess.run(["/bin/rm", "-rf", "/var/cache/akshara"])
     Path("/var/cache/akshara/rootfs").mkdir(parents=True, exist_ok=True)
 
     new_rootfs = gen_rootfs(system_config, "/var/cache/akshara/rootfs")
@@ -327,7 +352,7 @@ def update() -> None:
     output.info("merging /var...")
     merge_var(new_rootfs, overrides_keep_new)
 
-    subprocess.run(["cp", "-ax", str(new_rootfs), "/.update_rootfs"])
+    subprocess.run(["/bin/cp", "-ax", str(new_rootfs), "/.update_rootfs"])
 
     handle_boot(new_rootfs, system_config["boot"])
 

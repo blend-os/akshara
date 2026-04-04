@@ -10,7 +10,7 @@ from . import output
 def run_script_rootfs(rootfs: RootFS, input: str, args: list):
     """Runs a script within the rootfs."""
 
-    rootfs.exec(["bash", "-s", *args], text=True, input=input)
+    rootfs.exec(["/bin/bash", "-s", *args], text=True, input=input)
 
 
 def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) -> RootFS:
@@ -18,13 +18,13 @@ def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) ->
 
     rootfs = RootFS(rootfs_path, system_config["distro-config"], system_config["env"])
 
-    subprocess.run(["mkdir", "-p", f"{rootfs_path}/var/cache/blendOS"])
+    subprocess.run(["/bin/mkdir", "-p", f"{rootfs_path}/var/cache/blendOS"])
 
     if use_cache:
-        subprocess.run(["mkdir", "-p", "/var/cache/blendOS"])
+        subprocess.run(["/bin/mkdir", "-p", "/var/cache/blendOS"])
         subprocess.run(
             [
-                "mount",
+                "/sbin/mount",
                 "--bind",
                 "/var/cache/blendOS",
                 f"{rootfs_path}/var/cache/blendOS",
@@ -33,7 +33,7 @@ def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) ->
 
     if (
         subprocess.run(
-            ["bash", "-s"],
+            ["/bin/bash", "-s"],
             text=True,
             input=system_config["distro-config"]["initialise"],
             cwd=rootfs_path,
@@ -60,7 +60,7 @@ def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) ->
     if isinstance(system_config["distro-config"].get("finalise"), str):
         if (
             subprocess.run(
-                ["bash", "-s"],
+                ["/bin/bash", "-s"],
                 text=True,
                 input=system_config["distro-config"]["finalise"],
                 cwd=str(rootfs_path),
@@ -92,10 +92,10 @@ def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) ->
 
         immutable_list_file.write("\n".join(list(immutable_set)))
 
-    subprocess.run(["cp", "-ax", f"{rootfs}/etc", f"{rootfs}/usr/etc"])
-    subprocess.run(["cp", "-ax", f"{rootfs}/var", f"{rootfs}/usr/var"])
+    subprocess.run(["/bin/cp", "-ax", f"{rootfs}/etc", f"{rootfs}/usr/etc"])
+    subprocess.run(["/bin/cp", "-ax", f"{rootfs}/var", f"{rootfs}/usr/var"])
 
     if use_cache:
-        subprocess.run(["umount", "-l", f"{rootfs}/var/cache/blendOS"])
+        subprocess.run(["/sbin/umount", "-l", f"{rootfs}/var/cache/blendOS"])
 
     return rootfs

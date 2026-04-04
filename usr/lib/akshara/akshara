@@ -83,7 +83,7 @@ def update_check_daemon():
 @click.option("-f", "--force", is_flag=True)
 def update_cmd(force):
     """
-    Update your system.
+    Updates your system.
     """
 
     if os.geteuid() != 0:

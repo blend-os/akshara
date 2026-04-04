@@ -39,12 +39,17 @@ class RootFS:
 
         for dir in ("sys", "proc", "dev"):
             subprocess.run(
-                ["mount", "--bind", f"/{dir}", os.path.join(self.rootfs_path, dir)]
+                [
+                    "/sbin/mount",
+                    "--bind",
+                    f"/{dir}",
+                    os.path.join(self.rootfs_path, dir),
+                ]
             )
 
         completedProcess = subprocess.run(
             [
-                "chroot",
+                "/sbin/chroot",
                 self.rootfs_path,
             ]
             + list(cmd),
@@ -52,7 +57,7 @@ class RootFS:
         )
 
         for dir in ("sys", "proc", "dev"):
-            subprocess.run(["umount", os.path.join(self.rootfs_path, dir)])
+            subprocess.run(["/sbin/umount", os.path.join(self.rootfs_path, dir)])
 
         return completedProcess
 
@@ -65,7 +70,7 @@ class RootFS:
         """
         return subprocess.run(
             [
-                "systemd-nspawn",
+                "/bin/systemd-nspawn",
                 "--quiet",
                 "--pipe",
                 "--timezone=off",
