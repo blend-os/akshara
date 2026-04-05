@@ -268,6 +268,7 @@ def handle_boot(new_rootfs: RootFS, boot_config: dict) -> None:
 
     if boot_config["loader"] == "grub":
         new_rootfs.exec_chroot(["/sbin/grub-mkconfig", "-o", "/boot/grub/grub.cfg"])
+        new_rootfs.exec_chroot(["/bin/cp", "/boot/grub/grub.cfg", "/boot/grub.cfg"])
 
     subprocess.run(
         ["/sbin/umount", "-l", f"{new_rootfs}/boot"],

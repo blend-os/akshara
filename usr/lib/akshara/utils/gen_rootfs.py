@@ -90,7 +90,7 @@ def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) ->
 
         immutable_set.add("/usr")
 
-        immutable_list_file.write("\n".join(list(immutable_set)))
+        immutable_list_file.write("\n".join(list(immutable_set)) + "\n")
 
     subprocess.run(["/bin/cp", "-ax", f"{rootfs}/etc", f"{rootfs}/usr/etc"])
     subprocess.run(["/bin/cp", "-ax", f"{rootfs}/var", f"{rootfs}/usr/var"])
