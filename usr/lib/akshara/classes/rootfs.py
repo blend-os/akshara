@@ -40,7 +40,7 @@ class RootFS:
         for dir in ("sys", "proc", "dev"):
             subprocess.run(
                 [
-                    "/sbin/mount",
+                    "/bin/mount",
                     "--bind",
                     f"/{dir}",
                     os.path.join(self.rootfs_path, dir),
@@ -49,7 +49,7 @@ class RootFS:
 
         completedProcess = subprocess.run(
             [
-                "/sbin/chroot",
+                "/bin/chroot",
                 self.rootfs_path,
             ]
             + list(cmd),
@@ -57,7 +57,7 @@ class RootFS:
         )
 
         for dir in ("sys", "proc", "dev"):
-            subprocess.run(["/sbin/umount", os.path.join(self.rootfs_path, dir)])
+            subprocess.run(["/bin/umount", os.path.join(self.rootfs_path, dir)])
 
         return completedProcess
 

@@ -15,13 +15,16 @@ def update_cleanup() -> None:
     """Clean-up from previous rebase/update."""
 
     for path in (
+        "/.update_rootfs/boot",
+        "/.old.update_rootfs/boot",
+        "/var/cache/akshara/rootfs/boot",
         "/var/cache/akshara/rootfs/sys",
         "/var/cache/akshara/rootfs/proc",
         "/var/cache/akshara/rootfs/dev",
         "/var/cache/akshara/rootfs/var/cache/blendOS",
     ):
         subprocess.run(
-            ["/sbin/umount", "-l", path],
+            ["/bin/umount", "-l", path],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -203,11 +206,11 @@ def handle_boot(new_rootfs: RootFS, boot_config: dict) -> None:
     # FIXME: should be atomic
     merge_into_tree("/boot", os.path.join(str(new_rootfs), "boot"), False)
 
-    subprocess.run(["/sbin/mount", "--bind", "/boot", f"{new_rootfs}/boot"])
+    subprocess.run(["/bin/mount", "--bind", "/boot", f"{new_rootfs}/boot"])
 
     def restore_old_boot():
         subprocess.run(
-            ["/sbin/umount", "-l", f"{new_rootfs}/boot"],
+            ["/bin/umount", "-l", f"{new_rootfs}/boot"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -271,7 +274,7 @@ def handle_boot(new_rootfs: RootFS, boot_config: dict) -> None:
         new_rootfs.exec_chroot(["/bin/cp", "/boot/grub/grub.cfg", "/boot/grub.cfg"])
 
     subprocess.run(
-        ["/sbin/umount", "-l", f"{new_rootfs}/boot"],
+        ["/bin/umount", "-l", f"{new_rootfs}/boot"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )

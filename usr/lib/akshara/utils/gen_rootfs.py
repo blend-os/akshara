@@ -24,7 +24,7 @@ def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) ->
         subprocess.run(["/bin/mkdir", "-p", "/var/cache/blendOS"])
         subprocess.run(
             [
-                "/sbin/mount",
+                "/bin/mount",
                 "--bind",
                 "/var/cache/blendOS",
                 f"{rootfs_path}/var/cache/blendOS",
@@ -96,6 +96,6 @@ def gen_rootfs(system_config: dict, rootfs_path: str, use_cache: bool = True) ->
     subprocess.run(["/bin/cp", "-ax", f"{rootfs}/var", f"{rootfs}/usr/var"])
 
     if use_cache:
-        subprocess.run(["/sbin/umount", "-l", f"{rootfs}/var/cache/blendOS"])
+        subprocess.run(["/bin/umount", "-l", f"{rootfs}/var/cache/blendOS"])
 
     return rootfs
