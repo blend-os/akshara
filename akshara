@@ -272,7 +272,7 @@ def update_system():
 
         counter = 0
         while True:
-            return_val = exec_chroot('pacman', '-Sy', '--ask=4', 'reflector')
+            return_val = exec_chroot('pacman', '-Sy', '--overwrite=*', '--ask=4', 'reflector')
             counter += 1
             if counter > 30:
                 error('failed to download packages')
