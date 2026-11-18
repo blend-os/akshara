@@ -304,7 +304,7 @@ Server = {repo}
             pacman_conf.write('''
 [chaotic-aur]
 SigLevel = Never
-Server = https://cdn-mirror.chaotic.cx/$repo/$arch
+Server = https://geo-mirror.chaotic.cx/$repo/$arch
 ''')
 
             if type(blend_release.get('package-repos')) == list:
